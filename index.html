@@ -2471,22 +2471,6 @@ function seedDietFromChat(dateStr, meals) {
   saveDietData(all);
 }
 
-// 2026-04-13 채팅 입력 식단
-seedDietFromChat('2026-04-13', {
-  lunch: [
-    { name:'보쌈 수육(150g)',   qty:1, unit:'인분', kcal:280, prot:24,   carb:0,  fat:18,  sod:300, fib:0   },
-    { name:'쌈야채+콩나물',     qty:1, unit:'인분', kcal:50,  prot:2,    carb:8,  fat:0.2, sod:20,  fib:2.0 },
-    { name:'햇반 현미밥(절반)', qty:1, unit:'인분', kcal:140, prot:2.8,  carb:31, fat:0.8, sod:2,   fib:1.3 },
-    { name:'백김치 5조각',      qty:1, unit:'인분', kcal:30,  prot:1,    carb:5,  fat:0.3, sod:350, fib:1.0 },
-  ],
-  dinner: [
-    { name:'편의점 닭가슴살(100g)',       qty:1, unit:'인분', kcal:109, prot:23,  carb:0,  fat:1.2, sod:360, fib:0   },
-    { name:'오뚜기 컵누들 참깨라면(1개)', qty:1, unit:'인분', kcal:135, prot:4,   carb:21, fat:4,   sod:890, fib:0.5 },
-    { name:'동의반숙란 2개(1세트)',        qty:1, unit:'인분', kcal:148, prot:12.6,carb:0.8,fat:10,  sod:142, fib:0   },
-    { name:'프로틴 주스(250mL)',           qty:1, unit:'인분', kcal:104, prot:20,  carb:7,  fat:0.8, sod:150, fib:0   },
-  ]
-});
-
 async function init() {
   // Firebase에서 데이터 우선 로드 (다른 기기 동기화)
   const [jv, dv, rv] = await Promise.all([
@@ -2495,6 +2479,37 @@ async function init() {
   if (jv) localStorage.setItem(STORAGE_KEY, jv);
   if (dv) localStorage.setItem(DIET_KEY, dv);
   if (rv) localStorage.setItem(RM_KEY, rv);
+
+  // 채팅 입력 식단 시딩 (Firebase 로드 후 실행 → Firebase 데이터 우선)
+  seedDietFromChat('2026-04-13', {
+    lunch: [
+      { name:'보쌈 수육(150g)',   qty:1, unit:'인분', kcal:280, prot:24,   carb:0,  fat:18,  sod:300, fib:0   },
+      { name:'쌈야채+콩나물',     qty:1, unit:'인분', kcal:50,  prot:2,    carb:8,  fat:0.2, sod:20,  fib:2.0 },
+      { name:'햇반 현미밥(절반)', qty:1, unit:'인분', kcal:140, prot:2.8,  carb:31, fat:0.8, sod:2,   fib:1.3 },
+      { name:'백김치 5조각',      qty:1, unit:'인분', kcal:30,  prot:1,    carb:5,  fat:0.3, sod:350, fib:1.0 },
+    ],
+    dinner: [
+      { name:'편의점 닭가슴살(100g)',       qty:1, unit:'인분', kcal:109, prot:23,  carb:0,  fat:1.2, sod:360, fib:0   },
+      { name:'오뚜기 컵누들 참깨라면(1개)', qty:1, unit:'인분', kcal:135, prot:4,   carb:21, fat:4,   sod:890, fib:0.5 },
+      { name:'동의반숙란 2개(1세트)',        qty:1, unit:'인분', kcal:148, prot:12.6,carb:0.8,fat:10,  sod:142, fib:0   },
+      { name:'프로틴 주스(250mL)',           qty:1, unit:'인분', kcal:104, prot:20,  carb:7,  fat:0.8, sod:150, fib:0   },
+    ]
+  });
+  seedDietFromChat('2026-04-14', {
+    breakfast: [
+      { name:'프로틴 주스(250mL)',           qty:1, unit:'인분', kcal:104, prot:20,  carb:7,  fat:0.8, sod:150, fib:0   },
+    ],
+    lunch: [
+      { name:'추어탕(1인분)',                qty:1, unit:'인분', kcal:240, prot:20,  carb:12, fat:8,   sod:1500,fib:1.5 },
+      { name:'밥 1공기',                    qty:1, unit:'인분', kcal:300, prot:5,   carb:66, fat:0.5, sod:2,   fib:0.5 },
+      { name:'김치 5조각',                  qty:1, unit:'인분', kcal:20,  prot:1.5, carb:3,  fat:0.3, sod:300, fib:1.0 },
+    ],
+    dinner: [
+      { name:'오뚜기 컵누들 참깨라면(1개)', qty:1, unit:'인분', kcal:135, prot:4,   carb:21, fat:4,   sod:890, fib:0.5 },
+      { name:'편의점 닭가슴살(100g)',        qty:2, unit:'인분', kcal:218, prot:46,  carb:0,  fat:2.4, sod:720, fib:0   },
+      { name:'프로틴 주스(330mL)',           qty:1, unit:'인분', kcal:135, prot:25,  carb:8,  fat:2,   sod:150, fib:0   },
+    ]
+  });
 
   loadJournal();
   renderRoutineGrid();
