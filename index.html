@@ -1087,12 +1087,12 @@ const DAYS = [
   {
     name:'Day 1 · 밀기', sub:'가슴 / 어깨 / 삼두', badge:'PUSH', schedule:'화요일',
     exercises:[
-      { name:'벤치프레스', muscle:'가슴', weight:'40', setConfig:[
+      { name:'벤치프레스', muscle:'가슴', weight:'50', setConfig:[
           {type:'warmup', weight:'20', reps:15, restSec:60},
           {type:'normal', weight:'30', reps:12, restSec:90},
           {type:'normal', weight:'40', reps:10, restSec:90},
           {type:'normal', weight:'40', reps:8,  restSec:90},
-          {type:'main',   weight:'40', reps:6,  restSec:90},
+          {type:'main',   weight:'50', reps:6,  restSec:90},
       ]},
       { name:'인클라인 벤치프레스', muscle:'상부가슴', weight:'40', setConfig:[
           {type:'warmup', weight:'30', reps:10, restSec:60},
@@ -1105,10 +1105,10 @@ const DAYS = [
           {type:'normal', weight:'30', reps:8,  restSec:90},
           {type:'main',   weight:'30', reps:6,  restSec:90},
       ]},
-      { name:'트라이셉스 익스텐션', muscle:'삼두', weight:'20', setConfig:[
-          {type:'warmup', weight:'20', reps:12, restSec:60},
-          {type:'normal', weight:'20', reps:12, restSec:90},
-          {type:'main',   weight:'20', reps:10, restSec:0},
+      { name:'트라이셉스 익스텐션', muscle:'삼두', weight:'15', setConfig:[
+          {type:'warmup', weight:'10', reps:12, restSec:60},
+          {type:'normal', weight:'15', reps:12, restSec:90},
+          {type:'main',   weight:'15', reps:10, restSec:0},
       ]},
     ]
   },
@@ -1229,7 +1229,7 @@ const RM_KEY = 'ppld_1rm_v1';
 
 /* 기본 1RM (실측/추정) — localStorage로 덮어쓰기 가능 */
 const DEFAULT_1RM = {
-  '벤치프레스':      65,
+  '벤치프레스':      80,
   '바벨 스쿼트':     89,
   '데드리프트':     115,
   '렛풀다운':        75,   // 60×8 실측 추정
@@ -1237,15 +1237,17 @@ const DEFAULT_1RM = {
   '밀리터리 프레스': 35,   // 30×6 실측 추정
   // 바벨 컬·고립 운동은 제외 → e.weight 그대로 유지
 };
-/* 종목별 원판 단위 (기본 10kg) */
+/* 종목별 원판 단위 — Firestore config로 덮어쓰기 가능 */
+let _plateStepDefault = 5;
 const PLATE_STEP = {
   '렛풀다운':    5,
   '시티드 로우': 5,
 };
+function getPlateStep(exName) { return PLATE_STEP[exName] || _plateStepDefault; }
 
 /* Pre-layoff 1RM 기준치 & 현재 메인 중량 */
 const OV_1RM = {
-  '벤치프레스':         { ref1rm: 65,  target: 10, nextGoal: 47.5 },
+  '벤치프레스':         { ref1rm: 80,  target: 10, nextGoal: 50 },
   '인클라인 벤치프레스': { ref1rm: 55,  target: 10, nextGoal: 40 },
   '밀리터리 프레스':    { ref1rm: 35,  target: 8,  nextGoal: 20 },
   '데드리프트':         { ref1rm: 115, target: 6,  nextGoal: 70 },
@@ -1267,7 +1269,7 @@ function getCurrentPhase() {
 function getPhaseWeight(exName, oneRM) {
   const rm = (oneRM||{})[exName] || DEFAULT_1RM[exName];
   if (!rm) return null;
-  const step = PLATE_STEP[exName] || 10;
+  const step = getPlateStep(exName);
   return Math.round(rm * getCurrentPhase().mainPct / step) * step;
 }
 
@@ -1402,8 +1404,8 @@ function renderSets(di, ei) {
   const ex = DAYS[di].exercises[ei];
   const mainW = state.weights[di][ei];
   const isBW = ['—', '자체중량'].includes(ex.weight);
-  // 종목별 원판 단위: 덤벨 2kg, 렛풀다운/시티드로우 5kg, 나머지 바벨 10kg
-  const exStep = ex.dumbbell ? 2 : (PLATE_STEP[ex.name] || 10);
+  // 종목별 원판 단위: 덤벨 2kg, 나머지는 getPlateStep()으로 Firestore 설정 반영
+  const exStep = ex.dumbbell ? 2 : getPlateStep(ex.name);
   function snap(w) { return Math.round(w / exStep) * exStep; }
   function wDisplay(sc) {
     const rawW = sc.weight !== undefined ? sc.weight.toString() : '';
@@ -2473,12 +2475,21 @@ function seedDietFromChat(dateStr, meals) {
 
 async function init() {
   // Firebase에서 데이터 우선 로드 (다른 기기 동기화)
-  const [jv, dv, rv] = await Promise.all([
-    fbLoad('journal'), fbLoad('diet'), fbLoad('rm')
+  const [jv, dv, rv, cv] = await Promise.all([
+    fbLoad('journal'), fbLoad('diet'), fbLoad('rm'), fbLoad('config')
   ]);
   if (jv) localStorage.setItem(STORAGE_KEY, jv);
   if (dv) localStorage.setItem(DIET_KEY, dv);
   if (rv) localStorage.setItem(RM_KEY, rv);
+  // 운동 설정 Firestore에서 동적 적용
+  if (cv) {
+    try {
+      const cfg = JSON.parse(cv);
+      if (cfg.plateStepDefault != null) _plateStepDefault = cfg.plateStepDefault;
+      if (cfg.plateStep) Object.assign(PLATE_STEP, cfg.plateStep);
+      if (cfg.defaultRM) Object.assign(DEFAULT_1RM, cfg.defaultRM);
+    } catch(e) {}
+  }
 
   // 채팅 입력 식단 시딩 (Firebase 로드 후 실행 → Firebase 데이터 우선)
   seedDietFromChat('2026-04-13', {
@@ -2508,6 +2519,13 @@ async function init() {
       { name:'오뚜기 컵누들 참깨라면(1개)', qty:1, unit:'인분', kcal:135, prot:4,   carb:21, fat:4,   sod:890, fib:0.5 },
       { name:'편의점 닭가슴살(100g)',        qty:2, unit:'인분', kcal:218, prot:46,  carb:0,  fat:2.4, sod:720, fib:0   },
       { name:'프로틴 주스(330mL)',           qty:1, unit:'인분', kcal:135, prot:25,  carb:8,  fat:2,   sod:150, fib:0   },
+    ]
+  });
+  seedDietFromChat('2026-04-15', {
+    dinner: [
+      { name:'오뚜기 컵누들 참깨라면(1개)', qty:1, unit:'인분', kcal:135, prot:4,   carb:21, fat:4,   sod:890, fib:0.5 },
+      { name:'편의점 닭가슴살(100g)',        qty:2, unit:'인분', kcal:218, prot:46,  carb:0,  fat:2.4, sod:720, fib:0   },
+      { name:'바나나(1개)',                  qty:2, unit:'개',   kcal:210, prot:2.6, carb:54, fat:0.8, sod:2,   fib:6.2 },
     ]
   });
 
