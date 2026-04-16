@@ -1230,15 +1230,15 @@ const RM_KEY = 'ppld_1rm_v1';
 /* 기본 1RM (실측/추정) — localStorage로 덮어쓰기 가능 */
 const DEFAULT_1RM = {
   '벤치프레스':      80,
-  '바벨 스쿼트':     89,
+  '바벨 스쿼트':     90,
   '데드리프트':     115,
   '렛풀다운':        75,   // 60×8 실측 추정
-  '바벨 로우':       57.5, // 50×5 실측 추정
+  '바벨 로우':       60,
   '밀리터리 프레스': 35,   // 30×6 실측 추정
   // 바벨 컬·고립 운동은 제외 → e.weight 그대로 유지
 };
 /* 종목별 원판 단위 — Firestore config로 덮어쓰기 가능 */
-let _plateStepDefault = 5;
+let _plateStepDefault = 10;  // 바벨: 5kg 원판 양쪽 = 10kg 단위
 const PLATE_STEP = {
   '렛풀다운':    5,
   '시티드 로우': 5,
@@ -1252,9 +1252,9 @@ const OV_1RM = {
   '밀리터리 프레스':    { ref1rm: 35,  target: 8,  nextGoal: 20 },
   '데드리프트':         { ref1rm: 115, target: 6,  nextGoal: 70 },
   '렛풀다운':           { ref1rm: 75,  target: 8,  nextGoal: 40 },
-  '바벨 로우':          { ref1rm: 57.5,target: 8,  nextGoal: 30 },
-  '바벨 스쿼트':        { ref1rm: 89,  target: 10, nextGoal: 40 },
-  '바벨 컬':            { ref1rm: 27.5,target: 10, nextGoal: 20 },
+  '바벨 로우':          { ref1rm: 60,  target: 8,  nextGoal: 30 },
+  '바벨 스쿼트':        { ref1rm: 90,  target: 10, nextGoal: 40 },
+  '바벨 컬':            { ref1rm: 30,  target: 10, nextGoal: 20 },
 };
 
 /* ─── STATE ─── */
@@ -1270,7 +1270,7 @@ function getPhaseWeight(exName, oneRM) {
   const rm = (oneRM||{})[exName] || DEFAULT_1RM[exName];
   if (!rm) return null;
   const step = getPlateStep(exName);
-  return Math.round(rm * getCurrentPhase().mainPct / step) * step;
+  return Math.floor(rm * getCurrentPhase().mainPct / step) * step;
 }
 
 let state = {
@@ -1346,7 +1346,7 @@ function renderTabs() {
 function setWarmupWeight(mainW, pct) {
   if (pct === null) return null;
   const raw = mainW * pct;
-  return Math.round(raw / 2.5) * 2.5;
+  return Math.floor(raw / 2.5) * 2.5;
 }
 
 function renderDay(di) {
@@ -2489,6 +2489,7 @@ async function init() {
       if (cfg.plateStep) Object.assign(PLATE_STEP, cfg.plateStep);
       if (cfg.defaultRM) Object.assign(DEFAULT_1RM, cfg.defaultRM);
     } catch(e) {}
+    refreshPhaseWeights(); // config 로드 후 중량 재계산
   }
 
   // 채팅 입력 식단 시딩 (Firebase 로드 후 실행 → Firebase 데이터 우선)
