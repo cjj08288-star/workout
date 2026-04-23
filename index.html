@@ -1612,16 +1612,29 @@ function closeRest() {
 
 /* ─── FINISH WORKOUT ─── */
 function finishWorkout() {
-  if (!document.getElementById('btnFinish').classList.contains('ready')) return;
+  const allDone = isDayDone(state.day);
+  const done = state.sets[state.day].flat().filter(s => s === 'done').length;
+  const total = state.sets[state.day].flat().length;
+
+  // 세트가 하나도 없으면 무시
+  if (done === 0) return;
+
+  // 미완료 세트 있으면 확인
+  if (!allDone && !confirm(`${done}/${total} 세트 완료 상태로 기록할까요?`)) return;
+
   const elapsed = Math.round((Date.now() - state.workoutStart) / 60000);
   const d = DAYS[state.day];
-  const done = state.sets[state.day].flat().filter(s => s === 'done').length;
   const vol = calcVol(state.day);
+
+  // KST 날짜 (UTC+9)
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const dateStr = kst.toISOString().split('T')[0];
 
   // 일지 자동 저장
   const entry = {
     id: Date.now(),
-    date: new Date().toISOString().split('T')[0],
+    date: dateStr,
     dayIdx: state.day,
     dayBadge: d.badge,
     dayName: d.name,
@@ -1640,6 +1653,7 @@ function finishWorkout() {
   };
   state.journal.unshift(entry);
   saveJournal();
+  renderJournal();
 
   document.getElementById('doneSub').textContent = `${d.name} (${d.badge}) · ${elapsed}분 · 적응기 3주차`;
   document.getElementById('doneStats').innerHTML = `
