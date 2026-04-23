@@ -379,10 +379,11 @@ table.jm-ex-table{ width:100%; border-collapse:collapse; min-width:360px; }
 
 /* ─── 과부하 현황 테이블 ─── */
 .ov-status-section{ padding:12px 16px 0; }
-table.ov-status-table{ width:100%; border-collapse:collapse; background:var(--surface); border-radius:11px; overflow:hidden; font-size:14px; }
+.ov-status-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:11px; }
+table.ov-status-table{ width:100%; min-width:420px; border-collapse:collapse; background:var(--surface); border-radius:11px; overflow:hidden; font-size:14px; }
 .ov-status-table th{ background:var(--surface3); color:var(--accent); font-size:12px; font-weight:700; padding:8px 8px; text-align:center; letter-spacing:.4px; border-bottom:2px solid var(--accent); white-space:nowrap; }
-.ov-status-table td{ padding:8px 8px; text-align:center; border-bottom:1px solid var(--border); }
-.ov-status-table td:first-child{ text-align:left; font-weight:700; color:var(--text); }
+.ov-status-table td{ padding:8px 8px; text-align:center; border-bottom:1px solid var(--border); white-space:nowrap; }
+.ov-status-table td:first-child{ text-align:left; font-weight:700; color:var(--text); white-space:nowrap; min-width:90px; }
 .ov-status-table tr:last-child td{ border-bottom:none; }
 .ov-status-table tr:hover td{ background:rgba(255,107,71,.04); }
 .ov-judge{ font-size:13px; font-weight:700; padding:2px 7px; border-radius:4px; }
@@ -667,6 +668,7 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
   <!-- ③ 종목별 현황 표 -->
   <div class="ov-status-section">
     <div class="section-title" style="margin-bottom:8px;">🏋️ 종목별 현황</div>
+  <div class="ov-status-scroll">
     <table class="ov-status-table" id="ovStatusTable">
       <thead>
         <tr>
@@ -681,6 +683,7 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
       </thead>
       <tbody id="ovStatusBody"></tbody>
     </table>
+  </div>
   </div>
   <div class="ov-controls" style="padding-top:16px;">
     <div class="section-title" style="margin-bottom:8px;">📉 종목 상세 추적</div>
