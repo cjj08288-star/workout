@@ -559,26 +559,26 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
   <div class="section">
     <div class="section-title">📅 12주 주기화 로드맵</div>
     <div class="timeline">
-      <div class="tl-phase tl-done">
+      <div class="tl-phase" id="tl-준비기">
         <div class="tl-name">준비기</div>
         <div class="tl-wks">1~2주 ✓</div>
         <div class="tl-desc">자세 확립<br>결합 조직 적응</div>
         <div class="tl-pills"><span class="tl-pill">RPE 5~6</span><span class="tl-pill">40~50%</span></div>
       </div>
-      <div class="tl-phase tl-active">
-        <div class="tl-name">적응기 <span class="now-badge">NOW</span></div>
+      <div class="tl-phase" id="tl-적응기">
+        <div class="tl-name">적응기 <span class="now-badge" id="tl-now-badge" style="display:none">NOW</span></div>
         <div class="tl-wks">3~4주</div>
         <div class="tl-desc">신경 동원력 회복<br>볼륨 점진 증가</div>
         <div class="tl-pills"><span class="tl-pill">RPE 6~7</span><span class="tl-pill">50~60%</span><span class="tl-pill">10~12 rep</span></div>
       </div>
-      <div class="tl-phase">
-        <div class="tl-name">발전기</div>
+      <div class="tl-phase" id="tl-발전기">
+        <div class="tl-name">발전기 <span class="now-badge" id="tl-now-badge-발전기" style="display:none">NOW</span></div>
         <div class="tl-wks">5~8주</div>
         <div class="tl-desc">근비대 유도 · 점진적 과부하<br>주당 2.5~5kg 증량</div>
         <div class="tl-pills"><span class="tl-pill">RPE 7~8</span><span class="tl-pill">60~75%</span><span class="tl-pill">8~10 rep</span><span class="tl-pill">휴식 90~120초</span></div>
       </div>
-      <div class="tl-phase">
-        <div class="tl-name">회복기</div>
+      <div class="tl-phase" id="tl-회복기">
+        <div class="tl-name">회복기 <span class="now-badge" id="tl-now-badge-회복기" style="display:none">NOW</span></div>
         <div class="tl-wks">9~12주</div>
         <div class="tl-desc">근력 피킹 · 이전 기록 근접<br>고중량 저볼륨 집중</div>
         <div class="tl-pills"><span class="tl-pill">RPE 8~9</span><span class="tl-pill">75~90%</span><span class="tl-pill">4~6 rep</span><span class="tl-pill">휴식 2~4분</span></div>
@@ -1319,6 +1319,7 @@ function goto(page) {
 ══════════════════════════ */
 function renderDashboardPhase() {
   const p = getCurrentPhase();
+  const today = new Date().toISOString().slice(0,10);
   // 대시보드 헤더 태그
   const phaseTag = document.getElementById('db-phase-tag');
   const weekTag  = document.getElementById('db-week-tag');
@@ -1332,7 +1333,26 @@ function renderDashboardPhase() {
   if (pbDesc) pbDesc.textContent = p.desc;
   if (pbPills) pbPills.innerHTML = [p.rep, p.rpe, `1RM ${Math.round(p.mainPct*100)}%`]
     .map(t => `<span class="pb-pill">${t}</span>`).join('');
-  // 트래커 헤더 태그 (id 없는 것)
+  // 타임라인 활성화
+  const parents = ['준비기','적응기','발전기','회복기'];
+  parents.forEach(name => {
+    const el = document.getElementById('tl-' + name);
+    if (!el) return;
+    // 해당 parent의 마지막 phase endDate 계산
+    const subs = PHASES.filter(ph => ph.parent === name);
+    const lastEnd = subs.length ? subs[subs.length-1].endDate : '';
+    const firstStart = subs.length ? subs[0].startDate : '';
+    const done = lastEnd && today > lastEnd;
+    const active = !done && firstStart && today >= firstStart;
+    el.className = 'tl-phase' + (done ? ' tl-done' : active ? ' tl-active' : '');
+    // NOW 뱃지
+    const badge = el.querySelector('.now-badge');
+    if (badge) badge.style.display = active ? '' : 'none';
+  });
+  // 준비기는 항상 done
+  const prep = document.getElementById('tl-준비기');
+  if (prep) prep.className = 'tl-phase tl-done';
+  // 트래커 헤더 태그
   const trackerTags = document.querySelectorAll('#p-tracker .tag-pill.tp-accent');
   trackerTags.forEach(el => el.textContent = p.parent);
   const trackerWeekTags = document.querySelectorAll('#p-tracker .tag-pill.tp-sub');
