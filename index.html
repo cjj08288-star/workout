@@ -550,7 +550,7 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
   <!-- 스탯 -->
   <div class="stats-row">
     <div class="stat-box"><div class="stat-num">12</div><div class="stat-lbl">총 주차</div></div>
-    <div class="stat-box"><div class="stat-num">3</div><div class="stat-lbl">현재 주</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-current-week">3</div><div class="stat-lbl">현재 주</div></div>
     <div class="stat-box"><div class="stat-num">4</div><div class="stat-lbl">분할 수</div></div>
     <div class="stat-box"><div class="stat-num">~60분</div><div class="stat-lbl">세션 시간</div></div>
   </div>
@@ -1352,6 +1352,10 @@ function renderDashboardPhase() {
   // 준비기는 항상 done
   const prep = document.getElementById('tl-준비기');
   if (prep) prep.className = 'tl-phase tl-done';
+  // 현재 주 스탯 업데이트
+  const weekNum = parseInt(p.weeks) || 0;
+  const weekStat = document.getElementById('stat-current-week');
+  if (weekStat && weekNum) weekStat.textContent = weekNum;
   // 트래커 헤더 태그
   const trackerTags = document.querySelectorAll('#p-tracker .tag-pill.tp-accent');
   trackerTags.forEach(el => el.textContent = p.parent);
