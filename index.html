@@ -673,7 +673,6 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
       <thead>
         <tr>
           <th>종목</th>
-          <th>1RM기준</th>
           <th>현재중량</th>
           <th>추정1RM</th>
           <th>목표횟수</th>
@@ -1998,7 +1997,9 @@ function renderOvStatusTable() {
     const prev = sessions[sessions.length - 2];
 
     if (last) {
-      curWeight = last.weight + 'kg';
+      // 현재 중량: 트래커와 동일하게 getPhaseWeight 기준, 없으면 일지 마지막 값
+      const phaseW = getPhaseWeight(name, state._oneRM);
+      curWeight = (phaseW !== null ? phaseW : last.weight) + 'kg';
       const e1rm = last.weight * (1 + last.reps / 30);
       est1rm = e1rm.toFixed(1) + 'kg';
 
@@ -2020,7 +2021,6 @@ function renderOvStatusTable() {
 
     return `<tr>
       <td>${name}</td>
-      <td style="color:var(--sub)">${ref1rm ? ref1rm + 'kg' : '—'}</td>
       <td style="color:var(--accent);font-weight:700">${curWeight}</td>
       <td style="color:var(--green)">${est1rm}</td>
       <td>${target}회</td>
