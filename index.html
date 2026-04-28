@@ -1276,7 +1276,7 @@ function getPhaseWeight(exName, oneRM) {
   const rm = (oneRM||{})[exName] || DEFAULT_1RM[exName];
   if (!rm) return null;
   const step = getPlateStep(exName);
-  return Math.floor(rm * getCurrentPhase().mainPct / step) * step;
+  return Math.round(rm * getCurrentPhase().mainPct / step) * step;
 }
 
 let state = {
