@@ -2143,7 +2143,7 @@ function renderOvStatusTable() {
       // 현재 중량: 트래커와 동일하게 getPhaseWeight 기준, 없으면 일지 마지막 값
       const phaseW = getPhaseWeight(name, state._oneRM);
       curWeight = (phaseW !== null ? phaseW : last.weight) + 'kg';
-      const e1rm = last.weight * (1 + last.reps / 30);
+      const e1rm = last.weight * (36 / (37 - Math.min(last.reps, 36)));
       est1rm = e1rm.toFixed(1) + 'kg';
 
       // 판단 로직
