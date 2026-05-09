@@ -1666,7 +1666,7 @@ function startRest(sec, di, ei, si, dispW, dispR) {
   // 버튼에서 읽은 표기값 사용
   const sc = ex.setConfig[si];
   const plannedReps = dispR || (sc ? (parseInt(sc.reps) || '') : '');
-  const plannedWeight = dispW ? String(dispW).replace('kg','').trim() : (state.weights[di][ei] || '');
+  const plannedWeight = dispW ? (parseFloat(String(dispW).replace(/[^0-9.]/g,'')) || '') : (parseFloat(state.weights[di][ei]) || '');
   const repsInp = document.getElementById('actualRepsInput');
   const weightInp = document.getElementById('actualWeightInput');
   repsInp.value = plannedReps; repsInp.dataset.di = di; repsInp.dataset.ei = ei; repsInp.dataset.si = si;
