@@ -953,11 +953,26 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
   </button>
 </nav>
 
+<!-- 미니 타이머 버블 -->
+<div id="restBubble" onclick="document.getElementById('backdrop').classList.add('on');document.getElementById('restPanel').classList.add('on');this.style.display='none';"
+  style="display:none;position:fixed;top:14px;right:16px;z-index:500;background:var(--accent);color:#fff;font-size:13px;font-weight:800;padding:6px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(255,107,71,.4);">⏱ 0s</div>
+
 <!-- REST TIMER -->
-<div class="backdrop" id="backdrop" onclick="skipRest()"></div>
+<div class="backdrop" id="backdrop" onclick="dismissRestPanel()"></div>
 <div class="rest-panel" id="restPanel">
   <div class="rest-handle"></div>
   <div class="rest-title" id="restTitle">휴식 중...</div>
+  <!-- 실제 수행 무게/횟수 입력 -->
+  <div id="actualRepsRow" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 16px 0;font-size:13px;color:var(--sub);flex-wrap:wrap;">
+    <input id="actualWeightInput" type="number" min="0" max="500" step="2.5"
+      style="width:62px;text-align:center;font-size:16px;font-weight:800;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:4px 6px;"
+      onchange="saveActualSet()">
+    <span>kg ×</span>
+    <input id="actualRepsInput" type="number" min="0" max="99" step="1"
+      style="width:50px;text-align:center;font-size:16px;font-weight:800;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:4px 6px;"
+      onchange="saveActualSet()">
+    <span>회 실제 완료</span>
+  </div>
   <div class="rest-body">
     <div class="ring-wrap">
       <svg width="140" height="140" viewBox="0 0 140 140">
@@ -1629,23 +1644,32 @@ function playBeep() {
 /* ─── REST TIMER ─── */
 function startRest(sec, di, ei, si) {
   clearInterval(state.restTimer);
+  state.restEndTime = Date.now() + sec * 1000;
   state.restTotal = sec; state.restRem = sec; state.restCtx = { di, ei, si };
   const ex = DAYS[di].exercises[ei];
   document.getElementById('restTitle').innerHTML = `<strong>${ex.name}</strong> SET ${si+1} 완료 — 휴식 중`;
+  // 실제 무게/횟수 입력 초기화 (계획값 기본값)
+  const plannedReps = ex.setConfig[si] ? (parseInt(ex.setConfig[si].reps) || '') : '';
+  const plannedWeight = state.weights[di][ei] || '';
+  const repsInp = document.getElementById('actualRepsInput');
+  const weightInp = document.getElementById('actualWeightInput');
+  repsInp.value = plannedReps; repsInp.dataset.di = di; repsInp.dataset.ei = ei; repsInp.dataset.si = si;
+  weightInp.value = plannedWeight; weightInp.dataset.di = di; weightInp.dataset.ei = ei; weightInp.dataset.si = si;
   updateNextInfo(di, ei, si);
   document.getElementById('backdrop').classList.add('on');
   document.getElementById('restPanel').classList.add('on');
   updateRing();
   state.restTimer = setInterval(() => {
-    state.restRem--;
-    if (state.restRem <= 0) { clearInterval(state.restTimer); playBeep(); if (navigator.vibrate) navigator.vibrate([100,50,100]); closeRest(); }
-    else updateRing();
-  }, 1000);
+    state.restRem = Math.max(0, Math.round((state.restEndTime - Date.now()) / 1000));
+    updateRing();
+    updateMiniBubble();
+    if (state.restRem <= 0) { clearInterval(state.restTimer); playBeep(); if (navigator.vibrate) navigator.vibrate([100,50,100]); closeRest(); hideMiniBubble(); }
+  }, 500);
 }
 
 function updateRing() {
   document.getElementById('ringNum').textContent = state.restRem;
-  const pct = state.restRem / state.restTotal;
+  const pct = state.restTotal > 0 ? state.restRem / state.restTotal : 0;
   document.getElementById('ringFg').style.strokeDashoffset = CIRC * (1 - pct);
   const c = state.restRem <= 10 ? 'var(--yellow)' : 'var(--accent)';
   document.getElementById('ringFg').style.stroke = c;
@@ -1655,22 +1679,62 @@ function updateRing() {
 function updateNextInfo(di, ei, si) {
   const ex = DAYS[di].exercises[ei];
   const ns = si + 1;
+  const di2 = di;
   let info = '';
   if (ns < ex.setConfig.length) {
     const nsc = ex.setConfig[ns];
-    const tag = nsc.type === 'warmup' ? '웜업' : '메인';
-    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nsc.reps}`;
+    const tag = nsc.type === 'warmup' ? '웜업' : nsc.type === 'normal' ? '일반' : '메인';
+    const w = state.weights[di2][DAYS[di2].exercises.indexOf(ex)];
+    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nsc.reps}회 · <strong>${w}kg</strong>`;
   } else {
-    const ne = DAYS[di].exercises[ei + 1];
-    if (ne) { const nsc = ne.setConfig.find(s=>s.type==='main'); info = `다음 운동: <strong>${ne.name}</strong> × ${nsc ? nsc.reps : '—'}`; }
-    else info = `<strong>마지막 운동입니다! 🔥</strong>`;
+    const ne = DAYS[di2].exercises[DAYS[di2].exercises.indexOf(ex) + 1];
+    if (ne) {
+      const neiIdx = DAYS[di2].exercises.indexOf(ne);
+      const nsc = ne.setConfig.find(s => s.type === 'main');
+      const nw = state.weights[di2][neiIdx];
+      info = `다음 운동: <strong>${ne.name}</strong> × ${nsc ? nsc.reps : '—'}회 · <strong>${nw}kg</strong>`;
+    } else info = `<strong>마지막 운동입니다! 🔥</strong>`;
   }
   document.getElementById('nextInfo').innerHTML = info;
 }
 
-function addTime(s) { state.restRem = Math.min(state.restRem + s, 600); state.restTotal = Math.max(state.restTotal, state.restRem); updateRing(); }
+// 미니 타이머 버블 (패널 닫혀도 표시)
+function updateMiniBubble() {
+  let b = document.getElementById('restBubble');
+  if (!b) return;
+  b.textContent = `⏱ ${state.restRem}s`;
+  b.style.display = 'flex';
+}
+function hideMiniBubble() {
+  const b = document.getElementById('restBubble');
+  if (b) b.style.display = 'none';
+}
+
+function addTime(s) {
+  state.restEndTime += s * 1000;
+  state.restRem = Math.round((state.restEndTime - Date.now()) / 1000);
+  state.restTotal = Math.max(state.restTotal, state.restRem);
+  updateRing();
+}
+function saveActualSet() {
+  const repsInp = document.getElementById('actualRepsInput');
+  const weightInp = document.getElementById('actualWeightInput');
+  const di = parseInt(repsInp.dataset.di), ei = parseInt(repsInp.dataset.ei), si = parseInt(repsInp.dataset.si);
+  if (isNaN(di) || isNaN(ei) || isNaN(si)) return;
+  if (!state.actualReps) state.actualReps = {};
+  const key = `${di}_${ei}_${si}`;
+  state.actualReps[key] = { reps: parseInt(repsInp.value) || 0, weight: parseFloat(weightInp.value) || 0 };
+}
+
+function dismissRestPanel() {
+  // 패널만 닫기 — 타이머는 계속 돌아감
+  document.getElementById('backdrop').classList.remove('on');
+  document.getElementById('restPanel').classList.remove('on');
+  updateMiniBubble();
+}
 function skipRest() {
   clearInterval(state.restTimer);
+  hideMiniBubble();
   closeRest();
 }
 function closeRest() {
@@ -1720,13 +1784,24 @@ function finishWorkout() {
     dayName: d.name,
     duration: elapsed || 60,
     rpe: 6,
-    exercises: d.exercises.map((ex, ei) => ({
-      name: ex.name, muscle: ex.muscle,
-      sets: state.sets[state.day][ei].filter(s => s === 'done').length,
-      reps: (() => { const sc=ex.setConfig.find(s=>s.type==='main'); return sc ? (parseInt(sc.reps)||10) : 10; })(),
-      weight: state.weights[state.day][ei],
-      setType: '메인', exNote: ''
-    })),
+    exercises: d.exercises.map((ex, ei) => {
+      const doneSets = state.sets[state.day][ei].filter(s => s === 'done').length;
+      // 실제 수행 횟수: 마지막 메인 세트 실제 횟수 우선 사용
+      const mainSiArr = ex.setConfig.map((s,i)=>s.type==='main'?i:-1).filter(i=>i>=0);
+      let actualRep = 0;
+      for (const msi of mainSiArr.reverse()) {
+        const k = `${state.day}_${ei}_${msi}`;
+        if (state.actualReps && state.actualReps[k]) { actualRep = state.actualReps[k]; break; }
+      }
+      if (!actualRep) { const sc=ex.setConfig.find(s=>s.type==='main'); actualRep = sc ? (parseInt(sc.reps)||10) : 10; }
+      let actualWeight = 0;
+      for (const msi of mainSiArr) {
+        const k = `${state.day}_${ei}_${msi}`;
+        if (state.actualReps && state.actualReps[k] && state.actualReps[k].weight) { actualWeight = state.actualReps[k].weight; break; }
+      }
+      if (!actualWeight) actualWeight = parseFloat(state.weights[state.day][ei]) || 0;
+      return { name: ex.name, muscle: ex.muscle, sets: doneSets, reps: actualRep, weight: actualWeight, setType: '메인', exNote: '' };
+    }),
     notes: '',
     totalSets: done,
     totalVolume: vol
@@ -1760,6 +1835,7 @@ function calcVol(di) {
 function resetWorkout() {
   state.sets[state.day] = DAYS[state.day].exercises.map(e => Array(e.setConfig.length).fill('pending'));
   state.workoutStart = Date.now();
+  state.actualReps = {};
   localStorage.removeItem(TRACKER_KEY);
   document.getElementById('doneScreen').classList.remove('on');
   renderDay(state.day); updateProgress();
