@@ -1528,7 +1528,8 @@ function renderSets(di, ei) {
 function saveTrackerState() {
   const kst = new Date(Date.now() + 9*60*60*1000).toISOString().split('T')[0];
   localStorage.setItem(TRACKER_KEY, JSON.stringify({
-    date: kst, day: state.day, sets: state.sets, workoutStart: state.workoutStart
+    date: kst, day: state.day, sets: state.sets,
+    weights: state.weights, workoutStart: state.workoutStart
   }));
 }
 
@@ -1537,9 +1538,10 @@ function loadTrackerState() {
     const saved = JSON.parse(localStorage.getItem(TRACKER_KEY));
     if (!saved) return;
     const kst = new Date(Date.now() + 9*60*60*1000).toISOString().split('T')[0];
-    if (saved.date !== kst) { localStorage.removeItem(TRACKER_KEY); return; } // 날짜 다르면 무시
+    if (saved.date !== kst) { localStorage.removeItem(TRACKER_KEY); return; }
     state.day = saved.day;
     state.sets = saved.sets;
+    if (saved.weights) state.weights = saved.weights;
     state.workoutStart = saved.workoutStart || Date.now();
   } catch(e) {}
 }
@@ -1605,6 +1607,7 @@ function adjW(di, ei, delta) {
   const ex = DAYS[di].exercises[ei];
   const cur = parseFloat(state.weights[di][ei]) || 0;
   const raw = Math.max(0, cur + delta);
+  saveTrackerState();
   // 바벨: 10kg 단위 스냅, 덤벨: 2kg 단위 스냅
   const step = ex.dumbbell ? 2 : 10;
   const nw = Math.round(raw / step) * step;
@@ -1618,6 +1621,7 @@ function setW(di, ei, v) {
   state.weights[di][ei] = v;
   const row = document.getElementById(`sr-${di}-${ei}`);
   if (row) row.innerHTML = renderSets(di, ei);
+  saveTrackerState();
 }
 
 function isDayDone(di) { return state.sets[di].flat().every(s => s === 'done'); }
@@ -1826,7 +1830,7 @@ function finishWorkout() {
       let actualRep = 0;
       for (const msi of mainSiArr.reverse()) {
         const k = `${state.day}_${ei}_${msi}`;
-        if (state.actualReps && state.actualReps[k]) { actualRep = state.actualReps[k]; break; }
+        if (state.actualReps && state.actualReps[k]) { actualRep = state.actualReps[k].reps || state.actualReps[k]; break; }
       }
       if (!actualRep) { const sc=ex.setConfig.find(s=>s.type==='main'); actualRep = sc ? (parseInt(sc.reps)||10) : 10; }
       let actualWeight = 0;
