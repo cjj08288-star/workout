@@ -963,15 +963,25 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
   <div class="rest-handle"></div>
   <div class="rest-title" id="restTitle">휴식 중...</div>
   <!-- 실제 수행 무게/횟수 입력 -->
-  <div id="actualRepsRow" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 16px 0;font-size:13px;color:var(--sub);flex-wrap:wrap;">
-    <input id="actualWeightInput" type="number" min="0" max="500" step="2.5"
-      style="width:62px;text-align:center;font-size:16px;font-weight:800;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:4px 6px;"
-      onchange="saveActualSet()">
-    <span>kg ×</span>
-    <input id="actualRepsInput" type="number" min="0" max="99" step="1"
-      style="width:50px;text-align:center;font-size:16px;font-weight:800;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:4px 6px;"
-      onchange="saveActualSet()">
-    <span>회 실제 완료</span>
+  <div id="actualRepsRow" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 16px 0;font-size:13px;color:var(--sub);">
+    <!-- 무게 -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <button onclick="adjActual('w',5)" style="width:28px;height:20px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--sub);font-size:13px;cursor:pointer;line-height:1;">▲</button>
+      <input id="actualWeightInput" type="number" min="0" max="500" step="5"
+        style="width:58px;text-align:center;font-size:16px;font-weight:800;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:4px 4px;"
+        onchange="saveActualSet()">
+      <button onclick="adjActual('w',-5)" style="width:28px;height:20px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--sub);font-size:13px;cursor:pointer;line-height:1;">▼</button>
+    </div>
+    <span style="font-size:14px;">kg ×</span>
+    <!-- 횟수 -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <button onclick="adjActual('r',1)" style="width:28px;height:20px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--sub);font-size:13px;cursor:pointer;line-height:1;">▲</button>
+      <input id="actualRepsInput" type="number" min="0" max="99" step="1"
+        style="width:46px;text-align:center;font-size:16px;font-weight:800;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:4px 4px;"
+        onchange="saveActualSet()">
+      <button onclick="adjActual('r',-1)" style="width:28px;height:20px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--sub);font-size:13px;cursor:pointer;line-height:1;">▼</button>
+    </div>
+    <span style="font-size:14px;">회</span>
   </div>
   <div class="rest-body">
     <div class="ring-wrap">
@@ -1510,7 +1520,7 @@ function renderSets(di, ei) {
     const wLbl = wDisplay(sc);
     if (s === 'done') return `<button class="set-btn sd" onclick="undoSet(${di},${ei},${si})">
       <div class="sn">${tm.lbl}</div><div class="sw-w">✓</div><div class="sr">${wLbl}</div></button>`;
-    return `<button class="set-btn ${tm.cls}" id="sb-${di}-${ei}-${si}" onclick="completeSet(${di},${ei},${si})">
+    return `<button class="set-btn ${tm.cls}" id="sb-${di}-${ei}-${si}" onclick="completeSet(${di},${ei},${si},'${wLbl}',${sc.reps})">
       <div class="sn">${tm.lbl}</div><div class="sw-w">${wLbl}</div><div class="sr">×${sc.reps}</div></button>`;
   }).join('');
 }
@@ -1534,14 +1544,14 @@ function loadTrackerState() {
   } catch(e) {}
 }
 
-function completeSet(di, ei, si) {
+function completeSet(di, ei, si, displayW, displayReps) {
   state.sets[di][ei][si] = 'done';
   refreshCard(di, ei); updateProgress();
   saveTrackerState();
   const ex = DAYS[di].exercises[ei];
   const sc = ex.setConfig[si];
   const isLast = si === ex.setConfig.length - 1 && ei === DAYS[di].exercises.length - 1 && isDayDone(di);
-  if (!isLast && sc.restSec > 0) startRest(sc.restSec, di, ei, si);
+  if (!isLast && sc.restSec > 0) startRest(sc.restSec, di, ei, si, displayW, displayReps);
 }
 
 function undoSet(di, ei, si) {
@@ -1642,23 +1652,16 @@ function playBeep() {
 }
 
 /* ─── REST TIMER ─── */
-function startRest(sec, di, ei, si) {
+function startRest(sec, di, ei, si, displayW, displayReps) {
   clearInterval(state.restTimer);
   state.restEndTime = Date.now() + sec * 1000;
   state.restTotal = sec; state.restRem = sec; state.restCtx = { di, ei, si };
   const ex = DAYS[di].exercises[ei];
   document.getElementById('restTitle').innerHTML = `<strong>${ex.name}</strong> SET ${si+1} 완료 — 휴식 중`;
-  // 실제 무게/횟수 입력 초기화 — 해당 세트의 실제 무게 기준
+  // 버튼에 표기된 무게/횟수 그대로 사용
   const sc = ex.setConfig[si];
-  const plannedReps = sc ? (parseInt(sc.reps) || '') : '';
-  // 이 세트의 무게: 메인은 트래커 입력값, 웜업/일반은 setConfig 고정값
-  let plannedWeight;
-  if (sc && sc.type === 'main') {
-    const trackerWEl = document.getElementById(`wi-${di}-${ei}`);
-    plannedWeight = trackerWEl ? trackerWEl.value : (state.weights[di][ei] || '');
-  } else {
-    plannedWeight = sc ? sc.weight : (state.weights[di][ei] || '');
-  }
+  const plannedReps = displayReps !== undefined ? displayReps : (sc ? (parseInt(sc.reps) || '') : '');
+  const plannedWeight = displayW !== undefined ? String(displayW).replace('kg','') : (state.weights[di][ei] || '');
   const repsInp = document.getElementById('actualRepsInput');
   const weightInp = document.getElementById('actualWeightInput');
   repsInp.value = plannedReps; repsInp.dataset.di = di; repsInp.dataset.ei = ei; repsInp.dataset.si = si;
@@ -1692,28 +1695,16 @@ function updateNextInfo(di, ei, si) {
   if (ns < ex.setConfig.length) {
     const nsc = ex.setConfig[ns];
     const tag = nsc.type === 'warmup' ? '웜업' : nsc.type === 'normal' ? '일반' : '메인';
-    let nw;
-    if (nsc.type === 'main') {
-      const wEl = document.getElementById(`wi-${di}-${ei}`);
-      nw = wEl ? wEl.value : state.weights[di][ei];
-    } else {
-      nw = nsc.weight;
-    }
-    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nsc.reps}회 · <strong>${nw}kg</strong>`;
+    const nw = wDisplay(nsc);
+    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nsc.reps}회 · <strong>${nw}</strong>`;
   } else {
     const nextEi = ei + 1;
     const ne = DAYS[di].exercises[nextEi];
     if (ne) {
       const nsc0 = ne.setConfig[0];
-      let nw;
-      if (nsc0 && nsc0.type === 'main') {
-        const nwEl = document.getElementById(`wi-${di}-${nextEi}`);
-        nw = nwEl ? nwEl.value : state.weights[di][nextEi];
-      } else {
-        nw = nsc0 ? nsc0.weight : state.weights[di][nextEi];
-      }
-      const nscMain = ne.setConfig.find(s => s.type === 'main');
-      info = `다음 운동: <strong>${ne.name}</strong> (${nsc0 ? (nsc0.type==='warmup'?'웜업':'일반') : '세트'}부터) × ${nsc0 ? nsc0.reps : '—'}회 · <strong>${nw}kg</strong>`;
+      const nw = wDisplay(nsc0);
+      const tag0 = nsc0 ? (nsc0.type === 'warmup' ? '웜업' : nsc0.type === 'normal' ? '일반' : '메인') : '';
+      info = `다음 운동: <strong>${ne.name}</strong> ${tag0} × ${nsc0 ? nsc0.reps : '—'}회 · <strong>${nw}</strong>`;
     } else info = `<strong>마지막 운동입니다! 🔥</strong>`;
   }
   document.getElementById('nextInfo').innerHTML = info;
@@ -1737,6 +1728,17 @@ function addTime(s) {
   state.restTotal = Math.max(state.restTotal, state.restRem);
   updateRing();
 }
+function adjActual(type, delta) {
+  if (type === 'w') {
+    const inp = document.getElementById('actualWeightInput');
+    inp.value = Math.max(0, (parseFloat(inp.value) || 0) + delta);
+  } else {
+    const inp = document.getElementById('actualRepsInput');
+    inp.value = Math.max(0, (parseInt(inp.value) || 0) + delta);
+  }
+  saveActualSet();
+}
+
 function saveActualSet() {
   const repsInp = document.getElementById('actualRepsInput');
   const weightInp = document.getElementById('actualWeightInput');
