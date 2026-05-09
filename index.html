@@ -1648,10 +1648,17 @@ function startRest(sec, di, ei, si) {
   state.restTotal = sec; state.restRem = sec; state.restCtx = { di, ei, si };
   const ex = DAYS[di].exercises[ei];
   document.getElementById('restTitle').innerHTML = `<strong>${ex.name}</strong> SET ${si+1} 완료 — 휴식 중`;
-  // 실제 무게/횟수 입력 초기화 — 트래커 표시값 기준
-  const plannedReps = ex.setConfig[si] ? (parseInt(ex.setConfig[si].reps) || '') : '';
-  const trackerWEl = document.getElementById(`wi-${di}-${ei}`);
-  const plannedWeight = trackerWEl ? trackerWEl.value : (state.weights[di][ei] || '');
+  // 실제 무게/횟수 입력 초기화 — 해당 세트의 실제 무게 기준
+  const sc = ex.setConfig[si];
+  const plannedReps = sc ? (parseInt(sc.reps) || '') : '';
+  // 이 세트의 무게: 메인은 트래커 입력값, 웜업/일반은 setConfig 고정값
+  let plannedWeight;
+  if (sc && sc.type === 'main') {
+    const trackerWEl = document.getElementById(`wi-${di}-${ei}`);
+    plannedWeight = trackerWEl ? trackerWEl.value : (state.weights[di][ei] || '');
+  } else {
+    plannedWeight = sc ? sc.weight : (state.weights[di][ei] || '');
+  }
   const repsInp = document.getElementById('actualRepsInput');
   const weightInp = document.getElementById('actualWeightInput');
   repsInp.value = plannedReps; repsInp.dataset.di = di; repsInp.dataset.ei = ei; repsInp.dataset.si = si;
@@ -1685,17 +1692,28 @@ function updateNextInfo(di, ei, si) {
   if (ns < ex.setConfig.length) {
     const nsc = ex.setConfig[ns];
     const tag = nsc.type === 'warmup' ? '웜업' : nsc.type === 'normal' ? '일반' : '메인';
-    const wEl = document.getElementById(`wi-${di}-${ei}`);
-    const w = wEl ? wEl.value : state.weights[di][ei];
-    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nsc.reps}회 · <strong>${w}kg</strong>`;
+    let nw;
+    if (nsc.type === 'main') {
+      const wEl = document.getElementById(`wi-${di}-${ei}`);
+      nw = wEl ? wEl.value : state.weights[di][ei];
+    } else {
+      nw = nsc.weight;
+    }
+    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nsc.reps}회 · <strong>${nw}kg</strong>`;
   } else {
     const nextEi = ei + 1;
     const ne = DAYS[di].exercises[nextEi];
     if (ne) {
-      const nsc = ne.setConfig.find(s => s.type === 'main');
-      const nwEl = document.getElementById(`wi-${di}-${nextEi}`);
-      const nw = nwEl ? nwEl.value : state.weights[di][nextEi];
-      info = `다음 운동: <strong>${ne.name}</strong> × ${nsc ? nsc.reps : '—'}회 · <strong>${nw}kg</strong>`;
+      const nsc0 = ne.setConfig[0];
+      let nw;
+      if (nsc0 && nsc0.type === 'main') {
+        const nwEl = document.getElementById(`wi-${di}-${nextEi}`);
+        nw = nwEl ? nwEl.value : state.weights[di][nextEi];
+      } else {
+        nw = nsc0 ? nsc0.weight : state.weights[di][nextEi];
+      }
+      const nscMain = ne.setConfig.find(s => s.type === 'main');
+      info = `다음 운동: <strong>${ne.name}</strong> (${nsc0 ? (nsc0.type==='warmup'?'웜업':'일반') : '세트'}부터) × ${nsc0 ? nsc0.reps : '—'}회 · <strong>${nw}kg</strong>`;
     } else info = `<strong>마지막 운동입니다! 🔥</strong>`;
   }
   document.getElementById('nextInfo').innerHTML = info;
