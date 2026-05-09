@@ -1520,7 +1520,7 @@ function renderSets(di, ei) {
     const wLbl = wDisplay(sc);
     if (s === 'done') return `<button class="set-btn sd" onclick="undoSet(${di},${ei},${si})">
       <div class="sn">${tm.lbl}</div><div class="sw-w">✓</div><div class="sr">${wLbl}</div></button>`;
-    return `<button class="set-btn ${tm.cls}" id="sb-${di}-${ei}-${si}" onclick="completeSet(${di},${ei},${si},'${wLbl}',${sc.reps})">
+    return `<button class="set-btn ${tm.cls}" id="sb-${di}-${ei}-${si}" onclick="completeSet(${di},${ei},${si})">
       <div class="sn">${tm.lbl}</div><div class="sw-w">${wLbl}</div><div class="sr">×${sc.reps}</div></button>`;
   }).join('');
 }
@@ -1544,14 +1544,19 @@ function loadTrackerState() {
   } catch(e) {}
 }
 
-function completeSet(di, ei, si, displayW, displayReps) {
+function completeSet(di, ei, si) {
+  // 버튼 표기값 읽기 (done 처리 전)
+  const btn = document.getElementById(`sb-${di}-${ei}-${si}`);
+  const dispW = btn?.querySelector('.sw-w')?.textContent || '';
+  const dispR = btn?.querySelector('.sr')?.textContent.replace('×','').trim() || '';
+
   state.sets[di][ei][si] = 'done';
   refreshCard(di, ei); updateProgress();
   saveTrackerState();
   const ex = DAYS[di].exercises[ei];
   const sc = ex.setConfig[si];
   const isLast = si === ex.setConfig.length - 1 && ei === DAYS[di].exercises.length - 1 && isDayDone(di);
-  if (!isLast && sc.restSec > 0) startRest(sc.restSec, di, ei, si, displayW, displayReps);
+  if (!isLast && sc.restSec > 0) startRest(sc.restSec, di, ei, si, dispW, dispR);
 }
 
 function undoSet(di, ei, si) {
@@ -1652,16 +1657,16 @@ function playBeep() {
 }
 
 /* ─── REST TIMER ─── */
-function startRest(sec, di, ei, si, displayW, displayReps) {
+function startRest(sec, di, ei, si, dispW, dispR) {
   clearInterval(state.restTimer);
   state.restEndTime = Date.now() + sec * 1000;
   state.restTotal = sec; state.restRem = sec; state.restCtx = { di, ei, si };
   const ex = DAYS[di].exercises[ei];
   document.getElementById('restTitle').innerHTML = `<strong>${ex.name}</strong> SET ${si+1} 완료 — 휴식 중`;
-  // 버튼에 표기된 무게/횟수 그대로 사용
+  // 버튼에서 읽은 표기값 사용
   const sc = ex.setConfig[si];
-  const plannedReps = displayReps !== undefined ? displayReps : (sc ? (parseInt(sc.reps) || '') : '');
-  const plannedWeight = displayW !== undefined ? String(displayW).replace('kg','') : (state.weights[di][ei] || '');
+  const plannedReps = dispR || (sc ? (parseInt(sc.reps) || '') : '');
+  const plannedWeight = dispW ? String(dispW).replace('kg','').trim() : (state.weights[di][ei] || '');
   const repsInp = document.getElementById('actualRepsInput');
   const weightInp = document.getElementById('actualWeightInput');
   repsInp.value = plannedReps; repsInp.dataset.di = di; repsInp.dataset.ei = ei; repsInp.dataset.si = si;
@@ -1695,16 +1700,20 @@ function updateNextInfo(di, ei, si) {
   if (ns < ex.setConfig.length) {
     const nsc = ex.setConfig[ns];
     const tag = nsc.type === 'warmup' ? '웜업' : nsc.type === 'normal' ? '일반' : '메인';
-    const nw = wDisplay(nsc);
-    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nsc.reps}회 · <strong>${nw}</strong>`;
+    const nextBtn = document.getElementById(`sb-${di}-${ei}-${ns}`);
+    const nw = nextBtn?.querySelector('.sw-w')?.textContent || '';
+    const nr = nextBtn?.querySelector('.sr')?.textContent.replace('×','').trim() || nsc.reps;
+    info = `다음: <strong>${ex.name} ${tag} ${ns+1}</strong> × ${nr}회 · <strong>${nw}</strong>`;
   } else {
     const nextEi = ei + 1;
     const ne = DAYS[di].exercises[nextEi];
     if (ne) {
       const nsc0 = ne.setConfig[0];
-      const nw = wDisplay(nsc0);
       const tag0 = nsc0 ? (nsc0.type === 'warmup' ? '웜업' : nsc0.type === 'normal' ? '일반' : '메인') : '';
-      info = `다음 운동: <strong>${ne.name}</strong> ${tag0} × ${nsc0 ? nsc0.reps : '—'}회 · <strong>${nw}</strong>`;
+      const nextBtn0 = document.getElementById(`sb-${di}-${nextEi}-0`);
+      const nw = nextBtn0?.querySelector('.sw-w')?.textContent || '';
+      const nr = nextBtn0?.querySelector('.sr')?.textContent.replace('×','').trim() || (nsc0 ? nsc0.reps : '—');
+      info = `다음 운동: <strong>${ne.name}</strong> ${tag0} × ${nr}회 · <strong>${nw}</strong>`;
     } else info = `<strong>마지막 운동입니다! 🔥</strong>`;
   }
   document.getElementById('nextInfo').innerHTML = info;
