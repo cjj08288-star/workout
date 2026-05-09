@@ -1221,6 +1221,7 @@ const DAYS = [
   }
 ];
 const STORAGE_KEY = 'ppld_workout_log_v2';
+const TRACKER_KEY = 'ppld_tracker_state_v1';
 const CIRC = 2 * Math.PI * 55; // 345.4
 
 /* ─── 주기화 페이즈 ─── */
@@ -1499,9 +1500,29 @@ function renderSets(di, ei) {
   }).join('');
 }
 
+function saveTrackerState() {
+  const kst = new Date(Date.now() + 9*60*60*1000).toISOString().split('T')[0];
+  localStorage.setItem(TRACKER_KEY, JSON.stringify({
+    date: kst, day: state.day, sets: state.sets, workoutStart: state.workoutStart
+  }));
+}
+
+function loadTrackerState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TRACKER_KEY));
+    if (!saved) return;
+    const kst = new Date(Date.now() + 9*60*60*1000).toISOString().split('T')[0];
+    if (saved.date !== kst) { localStorage.removeItem(TRACKER_KEY); return; } // 날짜 다르면 무시
+    state.day = saved.day;
+    state.sets = saved.sets;
+    state.workoutStart = saved.workoutStart || Date.now();
+  } catch(e) {}
+}
+
 function completeSet(di, ei, si) {
   state.sets[di][ei][si] = 'done';
   refreshCard(di, ei); updateProgress();
+  saveTrackerState();
   const ex = DAYS[di].exercises[ei];
   const sc = ex.setConfig[si];
   const isLast = si === ex.setConfig.length - 1 && ei === DAYS[di].exercises.length - 1 && isDayDone(di);
@@ -1511,6 +1532,7 @@ function completeSet(di, ei, si) {
 function undoSet(di, ei, si) {
   state.sets[di][ei][si] = 'pending';
   refreshCard(di, ei); updateProgress();
+  saveTrackerState();
 }
 
 function refreshCard(di, ei) {
@@ -1738,6 +1760,7 @@ function calcVol(di) {
 function resetWorkout() {
   state.sets[state.day] = DAYS[state.day].exercises.map(e => Array(e.setConfig.length).fill('pending'));
   state.workoutStart = Date.now();
+  localStorage.removeItem(TRACKER_KEY);
   document.getElementById('doneScreen').classList.remove('on');
   renderDay(state.day); updateProgress();
 }
@@ -2622,6 +2645,7 @@ async function init() {
   });
 
   loadJournal();
+  loadTrackerState();
   renderRoutineGrid();
   renderDashboardPhase();
   const todayIdx = getTodayDayIndex();
