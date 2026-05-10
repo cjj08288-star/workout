@@ -1247,6 +1247,7 @@ const DAYS = [
 ];
 const STORAGE_KEY = 'ppld_workout_log_v2';
 const TRACKER_KEY = 'ppld_tracker_state_v1';
+const REST_KEY   = 'ppld_rest_state_v1';
 const CIRC = 2 * Math.PI * 55; // 345.4
 
 /* ─── 주기화 페이즈 ─── */
@@ -1665,6 +1666,8 @@ function startRest(sec, di, ei, si, dispW, dispR) {
   clearInterval(state.restTimer);
   state.restEndTime = Date.now() + sec * 1000;
   state.restTotal = sec; state.restRem = sec; state.restCtx = { di, ei, si };
+  // 앱 종료 후 복원용 저장
+  localStorage.setItem(REST_KEY, JSON.stringify({ endTime: state.restEndTime, total: sec, di, ei, si }));
   const ex = DAYS[di].exercises[ei];
   document.getElementById('restTitle').innerHTML = `<strong>${ex.name}</strong> SET ${si+1} 완료 — 휴식 중`;
   // 버튼에서 읽은 표기값 사용
@@ -1773,8 +1776,50 @@ function dismissRestPanel() {
 }
 function skipRest() {
   clearInterval(state.restTimer);
+  localStorage.removeItem(REST_KEY);
   hideMiniBubble();
   closeRest();
+}
+
+function restoreRestTimer() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(REST_KEY));
+    if (!saved) return;
+    const rem = Math.round((saved.endTime - Date.now()) / 1000);
+    if (rem <= 0) {
+      // 이미 끝났으면 알림만
+      localStorage.removeItem(REST_KEY);
+      updateMiniBubble();
+      const b = document.getElementById('restBubble');
+      if (b) { b.textContent = '⏱ 휴식 완료!'; b.style.display = 'flex'; b.style.background = 'var(--green)'; }
+      return;
+    }
+    // 남은 시간으로 타이머 복원
+    const { endTime, total, di, ei, si } = saved;
+    state.restEndTime = endTime;
+    state.restTotal = total;
+    state.restRem = rem;
+    state.restCtx = { di, ei, si };
+    const ex = DAYS[di]?.exercises[ei];
+    if (ex) {
+      document.getElementById('restTitle').innerHTML = `<strong>${ex.name}</strong> SET ${si+1} 완료 — 휴식 중`;
+      updateNextInfo(di, ei, si);
+    }
+    document.getElementById('backdrop').classList.add('on');
+    document.getElementById('restPanel').classList.add('on');
+    updateRing();
+    state.restTimer = setInterval(() => {
+      state.restRem = Math.max(0, Math.round((state.restEndTime - Date.now()) / 1000));
+      updateRing(); updateMiniBubble();
+      if (state.restRem <= 0) {
+        clearInterval(state.restTimer);
+        localStorage.removeItem(REST_KEY);
+        playBeep();
+        if (navigator.vibrate) navigator.vibrate([100,50,100]);
+        closeRest(); hideMiniBubble();
+      }
+    }, 500);
+  } catch(e) {}
 }
 function closeRest() {
   document.getElementById('backdrop').classList.remove('on');
@@ -2762,6 +2807,7 @@ async function init() {
   loadJournal();
   loadTrackerState();
   renderRoutineGrid();
+  restoreRestTimer();
   renderDashboardPhase();
   const todayIdx = getTodayDayIndex();
   const isWorkoutDay = todayIdx !== null;
