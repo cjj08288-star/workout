@@ -1578,6 +1578,43 @@ function refreshCard(di, ei) {
   renderTabs();
 }
 
+function updateRMFromJournal() {
+  if (!state.journal || state.journal.length === 0) return;
+  const best = {}; // exName → best est1RM
+
+  state.journal.forEach(entry => {
+    (entry.exercises || []).forEach(ex => {
+      const sets = ex.setData
+        ? ex.setData.filter(s => s.type === 'main' && s.done && s.weight > 0 && s.reps > 0 && s.reps < 37)
+        : (ex.weight > 0 && ex.reps > 0 && ex.reps < 37 ? [{ weight: ex.weight, reps: ex.reps }] : []);
+
+      sets.forEach(s => {
+        const est = s.weight * (36 / (37 - s.reps));
+        if (!best[ex.name] || est > best[ex.name]) best[ex.name] = est;
+      });
+    });
+  });
+
+  // DEFAULT_1RM에 있는 종목만 자동 업데이트
+  const saved = state._oneRM;
+  let changed = false;
+  Object.keys(best).forEach(name => {
+    if (DEFAULT_1RM[name] !== undefined) {
+      const newRM = Math.round(best[name]);
+      if (newRM > 0 && newRM !== saved[name]) {
+        saved[name] = newRM;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) {
+    const rmStr = JSON.stringify(saved);
+    localStorage.setItem(RM_KEY, rmStr);
+    fbSave('rm', rmStr);
+  }
+}
+
 function refreshPhaseWeights() {
   const oneRM = state._oneRM;
   DAYS.forEach((day, di) => {
@@ -1869,22 +1906,50 @@ function finishWorkout() {
     duration: elapsed || 60,
     rpe: 6,
     exercises: d.exercises.map((ex, ei) => {
+      const mainW = parseFloat(state.weights[state.day][ei]) || 0;
+      const exStep = ex.dumbbell ? 2 : getPlateStep(ex.name);
+      const snap = w => Math.round(w / exStep) * exStep;
+
+      // 모든 세트 기록
+      const setData = ex.setConfig.map((sc, si) => {
+        const isDone = state.sets[state.day][ei][si] === 'done';
+        const k = `${state.day}_${ei}_${si}`;
+        const actual = state.actualReps && state.actualReps[k];
+        let w;
+        if (actual && actual.weight) w = actual.weight;
+        else if (sc.type === 'main') w = mainW;
+        else if (sc.type === 'warmup') w = snap(mainW * 0.50);
+        else if (sc.type === 'normal') w = snap(mainW * 0.75);
+        else w = parseFloat(sc.weight) || mainW;
+        const r = actual ? (actual.reps || parseInt(sc.reps) || 0) : (parseInt(sc.reps) || 0);
+        return { si, type: sc.type, weight: w, reps: r, done: isDone };
+      });
+
+      const mainSet = setData.find(s => s.type === 'main' && s.done) || setData.find(s => s.type === 'main');
       const doneSets = state.sets[state.day][ei].filter(s => s === 'done').length;
-      // 실제 수행 횟수: 마지막 메인 세트 실제 횟수 우선 사용
-      const mainSiArr = ex.setConfig.map((s,i)=>s.type==='main'?i:-1).filter(i=>i>=0);
-      let actualRep = 0;
-      for (const msi of mainSiArr.reverse()) {
-        const k = `${state.day}_${ei}_${msi}`;
-        if (state.actualReps && state.actualReps[k]) { actualRep = state.actualReps[k].reps || state.actualReps[k]; break; }
+
+      // 1RM 자동 업데이트 (메인 세트 기준 Brzycki)
+      if (mainSet && mainSet.done && mainSet.weight > 0 && mainSet.reps > 0 && mainSet.reps < 37) {
+        const est1rm = mainSet.weight * (36 / (37 - mainSet.reps));
+        const saved = state._oneRM;
+        if (DEFAULT_1RM[ex.name] !== undefined || saved[ex.name]) {
+          const cur = saved[ex.name] || DEFAULT_1RM[ex.name] || 0;
+          if (est1rm > cur * 0.85) { // 비현실적 값 필터링
+            saved[ex.name] = Math.round(est1rm);
+            const rmStr = JSON.stringify(saved);
+            localStorage.setItem(RM_KEY, rmStr);
+            fbSave('rm', rmStr);
+          }
+        }
       }
-      if (!actualRep) { const sc=ex.setConfig.find(s=>s.type==='main'); actualRep = sc ? (parseInt(sc.reps)||10) : 10; }
-      let actualWeight = 0;
-      for (const msi of mainSiArr) {
-        const k = `${state.day}_${ei}_${msi}`;
-        if (state.actualReps && state.actualReps[k] && state.actualReps[k].weight) { actualWeight = state.actualReps[k].weight; break; }
-      }
-      if (!actualWeight) actualWeight = parseFloat(state.weights[state.day][ei]) || 0;
-      return { name: ex.name, muscle: ex.muscle, sets: doneSets, reps: actualRep, weight: actualWeight, setType: '메인', exNote: '' };
+
+      return {
+        name: ex.name, muscle: ex.muscle,
+        sets: doneSets, setData,
+        reps: mainSet ? mainSet.reps : 0,
+        weight: mainSet ? mainSet.weight : mainW,
+        setType: '전체', exNote: ''
+      };
     }),
     notes: '',
     totalSets: done,
@@ -2805,6 +2870,7 @@ async function init() {
   });
 
   loadJournal();
+  updateRMFromJournal();
   loadTrackerState();
   renderRoutineGrid();
   restoreRestTimer();
