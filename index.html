@@ -1559,7 +1559,32 @@ function completeSet(di, ei, si) {
   const ex = DAYS[di].exercises[ei];
   const sc = ex.setConfig[si];
   const isLast = si === ex.setConfig.length - 1 && ei === DAYS[di].exercises.length - 1 && isDayDone(di);
-  if (!isLast && sc.restSec > 0) startRest(sc.restSec, di, ei, si, dispW, dispR);
+  if (isLast) {
+    showLastSetInput(di, ei, si, dispW, dispR);
+  } else if (sc.restSec > 0) {
+    startRest(sc.restSec, di, ei, si, dispW, dispR);
+  }
+}
+
+function showLastSetInput(di, ei, si, dispW, dispR) {
+  // 마지막 세트: 타이머 없이 기록 입력 패널만 표시
+  const ex = DAYS[di].exercises[ei];
+  state.restCtx = { di, ei, si };
+  state.restEndTime = null; // 타이머 없음
+  document.getElementById('restTitle').innerHTML = `<strong>${ex.name}</strong> 마지막 세트 완료 — 기록 입력`;
+  const sc = ex.setConfig[si];
+  const plannedReps = dispR || (sc ? (parseInt(sc.reps) || '') : '');
+  const plannedWeight = dispW ? (parseFloat(String(dispW).replace(/[^0-9.]/g,'')) || '') : (parseFloat(state.weights[di][ei]) || '');
+  const repsInp = document.getElementById('actualRepsInput');
+  const weightInp = document.getElementById('actualWeightInput');
+  repsInp.value = plannedReps; repsInp.dataset.di = di; repsInp.dataset.ei = ei; repsInp.dataset.si = si;
+  weightInp.value = plannedWeight; weightInp.dataset.di = di; weightInp.dataset.ei = ei; weightInp.dataset.si = si;
+  // 링/타이머 숨기고 확인 버튼만
+  document.getElementById('ringNum').textContent = '✓';
+  document.querySelector('.ring-wrap').style.opacity = '0.3';
+  document.getElementById('nextInfo').innerHTML = '<span style="color:var(--green);font-weight:700;">모든 세트 완료! 기록 후 운동 완료 버튼을 누르세요.</span>';
+  document.getElementById('backdrop').classList.add('on');
+  document.getElementById('restPanel').classList.add('on');
 }
 
 function undoSet(di, ei, si) {
@@ -1861,6 +1886,7 @@ function restoreRestTimer() {
 function closeRest() {
   document.getElementById('backdrop').classList.remove('on');
   document.getElementById('restPanel').classList.remove('on');
+  document.querySelector('.ring-wrap').style.opacity = '1';
   if (state.restCtx) {
     const { di, ei, si } = state.restCtx;
     const ex = DAYS[di].exercises[ei];
