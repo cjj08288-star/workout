@@ -1112,7 +1112,7 @@ function fbListen(key, cb) {
 /* ─── DATA ─── */
 const DAYS = [
   {
-    name:'Day 1 · 밀기', sub:'가슴 / 어깨 / 삼두', badge:'PUSH', schedule:'화요일',
+    name:'Day 1 · 밀기', sub:'가슴 / 어깨 / 삼두', badge:'PUSH', schedule:'토요일',
     exercises:[
       { name:'벤치프레스', muscle:'가슴', weight:'50', setConfig:[
           {type:'warmup', weight:'20', reps:15, restSec:120},
@@ -1145,7 +1145,7 @@ const DAYS = [
     ]
   },
   {
-    name:'Day 2 · 당기기1', sub:'등 / 이두', badge:'PULL 1', schedule:'목요일',
+    name:'Day 2 · 당기기1', sub:'등 / 이두', badge:'PULL 1', schedule:'금요일',
     exercises:[
       { name:'데드리프트', muscle:'전체후면', weight:'70', setConfig:[
           {type:'warmup', weight:'40', reps:12, restSec:120},
@@ -1176,7 +1176,7 @@ const DAYS = [
     ]
   },
   {
-    name:'Day 3 · 하체', sub:'대퇴 / 종아리', badge:'LEG', schedule:'토요일',
+    name:'Day 3 · 하체', sub:'대퇴 / 종아리', badge:'LEG', schedule:'수요일',
     exercises:[
       { name:'바벨 스쿼트', muscle:'대퇴사두', weight:'50', setConfig:[
           {type:'warmup', weight:'30', reps:15, restSec:120},
@@ -1207,7 +1207,7 @@ const DAYS = [
     ]
   },
   {
-    name:'Day 4 · 당기기2', sub:'등 / 이두 (데드 제외)', badge:'PULL 2', schedule:'일요일',
+    name:'Day 4 · 당기기2', sub:'등 / 이두 (데드 제외)', badge:'PULL 2', schedule:'월요일',
     exercises:[
       { name:'풀업', muscle:'광배', weight:'—', setConfig:[
           {type:'warmup', weight:'맨몸+밴드', reps:'최대', restSec:90},
@@ -2825,9 +2825,10 @@ function deleteDietEntry(meal, idx) {
 ══════════════════════════ */
 function getTodayDayIndex() {
   // 0=일 1=월 2=화 3=수 4=목 5=금 6=토
-  const dow = new Date().getDay();
-  const map = { 2:0, 4:1, 6:2, 0:3 }; // 화→Day1, 목→Day2, 토→Day3, 일→Day4
-  return map[dow] !== undefined ? map[dow] : null; // 쉬는 날은 null
+  const kst = new Date(Date.now() + 9*60*60*1000);
+  const dow = kst.getDay();
+  const map = { 6:0, 5:1, 3:2, 1:3 }; // 토→Day1(PUSH), 금→Day2(PULL1), 수→Day3(LEG), 월→Day4(PULL2)
+  return map[dow] !== undefined ? map[dow] : null;
 }
 
 // ── 채팅 식단 시드 (날짜별 1회만 적용) ──
