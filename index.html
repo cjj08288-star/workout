@@ -1247,7 +1247,8 @@ const DAYS = [
 ];
 const STORAGE_KEY = 'ppld_workout_log_v2';
 const TRACKER_KEY = 'ppld_tracker_state_v1';
-const REST_KEY   = 'ppld_rest_state_v1';
+const REST_KEY    = 'ppld_rest_state_v1';
+const NEXT_W_KEY  = 'ppld_next_weights_v1'; // 성과 기반 다음 세션 추천 무게
 const CIRC = 2 * Math.PI * 55; // 345.4
 
 /* ─── 주기화 페이즈 ─── */
@@ -1601,6 +1602,49 @@ function refreshCard(di, ei) {
   const row = document.getElementById(`sr-${di}-${ei}`);
   if (row) row.innerHTML = renderSets(di, ei);
   renderTabs();
+}
+
+function calcNextWeights(exercises, dayIdx) {
+  const saved = JSON.parse(localStorage.getItem(NEXT_W_KEY) || '{}');
+  const phaseMax = getCurrentPhase().mainPct;
+
+  exercises.forEach((ex, ei) => {
+    const mainSet = (ex.setData || []).find(s => s.type === 'main' && s.done);
+    if (!mainSet) return;
+
+    const target = OV_1RM[ex.name]?.target || 8;
+    const step = DAYS[dayIdx].exercises[ei]?.dumbbell ? 2 : getPlateStep(ex.name);
+    const curW = mainSet.weight;
+    const curR = mainSet.reps;
+
+    // 1RM 기반 상한선
+    const rm = state._oneRM[ex.name] || DEFAULT_1RM[ex.name];
+    const ceiling = rm ? Math.round(rm * phaseMax / step) * step : Infinity;
+
+    let nextW;
+    if (curR >= target) {
+      nextW = Math.min(curW + step, ceiling); // 목표 달성 → 1단계 증량 (상한선 이내)
+    } else {
+      nextW = curW; // 미달 → 유지
+    }
+
+    const key = `d${dayIdx}_${ex.name}`;
+    saved[key] = { weight: nextW, achieved: curR >= target, reps: curR, target };
+  });
+
+  localStorage.setItem(NEXT_W_KEY, JSON.stringify(saved));
+}
+
+function applyNextWeights(dayIdx) {
+  const saved = JSON.parse(localStorage.getItem(NEXT_W_KEY) || '{}');
+  DAYS[dayIdx].exercises.forEach((ex, ei) => {
+    const key = `d${dayIdx}_${ex.name}`;
+    if (saved[key]) {
+      state.weights[dayIdx][ei] = String(saved[key].weight);
+      const inp = document.getElementById(`wi-${dayIdx}-${ei}`);
+      if (inp) inp.value = saved[key].weight;
+    }
+  });
 }
 
 function updateRMFromJournal() {
@@ -1984,6 +2028,7 @@ function finishWorkout() {
   state.journal.unshift(entry);
   saveJournal();
   renderJournal();
+  calcNextWeights(entry.exercises, state.day);
 
   const cp = getCurrentPhase();
   document.getElementById('doneSub').textContent = `${d.name} (${d.badge}) · ${elapsed}분 · ${cp.name}`;
@@ -2062,13 +2107,22 @@ function renderJournal() {
           <div class="je-arrow">›</div>
         </div>
         <div class="je-details" id="jd-${idx}">
-          ${e.exercises.map(ex => `
+          ${e.exercises.map(ex => {
+            const typeLabel = { warmup:'웜업', normal:'일반', main:'메인' };
+            const setsHtml = ex.setData && ex.setData.length
+              ? ex.setData.filter(s => s.done).map(s =>
+                  `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:12px;color:var(--sub);">
+                    <span style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:10px;color:${s.type==='main'?'var(--accent)':s.type==='warmup'?'var(--dim)':'var(--sub)'};">${typeLabel[s.type]||s.type}</span>
+                    <span>${s.weight}${!['—','자체중량','맨몸','맨몸+밴드'].includes(String(s.weight))?'kg':''} × ${s.reps}회</span>
+                  </div>`).join('')
+              : `<div style="font-size:12px;color:var(--sub);">${ex.sets}세트 × ${ex.reps}회 · ${ex.weight}${!['—','자체중량'].includes(String(ex.weight))?'kg':''}</div>`;
+            return `
             <div class="je-ex-row">
               <span class="je-ex-name">${ex.name}</span>
-              <span class="je-ex-sets">${ex.setType ? '['+ex.setType+'] ' : ''}${ex.sets}세트 × ${ex.reps}회</span>
-              <span class="je-ex-weight">${ex.weight}${!['—','자체중량'].includes(String(ex.weight))?'kg':''}</span>
+              <div style="flex:1">${setsHtml}</div>
               ${ex.exNote ? `<span style="color:var(--sub);font-size:10px;width:100%;margin-top:2px;">💬 ${ex.exNote}</span>` : ''}
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
           ${e.notes ? `<div class="je-notes-row">📝 메모: <span>${e.notes}</span></div>` : ''}
           <div class="je-actions">
             <button class="btn-del" onclick="event.stopPropagation(); deleteEntry(${idx})">🗑 삭제</button>
@@ -2899,6 +2953,8 @@ async function init() {
   loadJournal();
   updateRMFromJournal();
   loadTrackerState();
+  const _todayIdx = getTodayDayIndex();
+  if (_todayIdx !== null) applyNextWeights(_todayIdx);
   renderRoutineGrid();
   restoreRestTimer();
   renderDashboardPhase();
