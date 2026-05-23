@@ -21,6 +21,7 @@ body{
   font-family:'Segoe UI',system-ui,Arial,sans-serif;
   font-size:16px; overflow:hidden;
   display:flex; justify-content:center;
+  word-break:keep-all; overflow-wrap:break-word;
 }
 
 /* ═══════════════════════════════════════
@@ -1492,12 +1493,19 @@ function renderSets(di, ei) {
   // 종목별 원판 단위: 덤벨 2kg, 나머지는 getPlateStep()으로 Firestore 설정 반영
   const exStep = ex.dumbbell ? 2 : getPlateStep(ex.name);
   function snap(w) { return Math.round(w / exStep) * exStep; }
-  function wDisplay(sc) {
+  // normal 세트 인덱스별 비율 사전 계산 (65%~90% 균등 분배)
+  const _normalIdx = ex.setConfig.reduce((arr, sc, si) => sc.type === 'normal' ? [...arr, si] : arr, []);
+  const _normalPcts = _normalIdx.length === 0 ? [] :
+    _normalIdx.length === 1 ? [0.75] :
+    _normalIdx.map((_, i) => 0.65 + (0.25 * i / (_normalIdx.length - 1)));
+  const _normalPctMap = {};
+  _normalIdx.forEach((si, i) => { _normalPctMap[si] = _normalPcts[i]; });
+
+  function wDisplay(sc, si) {
     const rawW = sc.weight !== undefined ? sc.weight.toString() : '';
     if (['맨몸', '맨몸+밴드', '—'].includes(rawW)) return rawW;
     if (isBW) return '자체중량';
     const mainVal = parseFloat(mainW) || 0;
-    // flatWeight 운동(사이드 레터럴 등)은 모든 세트 동일 무게
     if (ex.flatWeight) {
       return ex.dumbbell ? `양손 ${mainW}kg` : `${mainW}kg`;
     }
@@ -1509,7 +1517,7 @@ function renderSets(di, ei) {
       return ex.dumbbell ? `양손 ${calc}kg` : `${calc}kg`;
     }
     if (sc.type === 'normal') {
-      const calc = snap(mainVal * 0.75);
+      const calc = snap(mainVal * (_normalPctMap[si] || 0.75));
       return ex.dumbbell ? `양손 ${calc}kg` : `${calc}kg`;
     }
     return ex.dumbbell ? `양손 ${rawW}kg` : `${rawW}kg`;
@@ -1518,7 +1526,7 @@ function renderSets(di, ei) {
   return ex.setConfig.map((sc, si) => {
     const s   = state.sets[di][ei][si];
     const tm  = typeMap[sc.type] || typeMap.main;
-    const wLbl = wDisplay(sc);
+    const wLbl = wDisplay(sc, si);
     if (s === 'done') return `<button class="set-btn sd" onclick="undoSet(${di},${ei},${si})">
       <div class="sn">${tm.lbl}</div><div class="sw-w">✓</div><div class="sr">${wLbl}</div></button>`;
     return `<button class="set-btn ${tm.cls}" id="sb-${di}-${ei}-${si}" onclick="completeSet(${di},${ei},${si})">
@@ -1605,31 +1613,40 @@ function refreshCard(di, ei) {
 
 function updateRMFromJournal() {
   if (!state.journal || state.journal.length === 0) return;
-  const best = {}; // exName → best est1RM
 
-  state.journal.forEach(entry => {
+  // 종목별 세션 그룹화 (journal은 최신순 정렬)
+  const sorted = [...state.journal].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const byExSessions = {}; // exName → [sets, ...] (최신순)
+  sorted.forEach(entry => {
     (entry.exercises || []).forEach(ex => {
       const sets = ex.setData
         ? ex.setData.filter(s => s.done && s.weight > 0 && s.reps > 0 && s.reps < 37)
-        : (ex.weight > 0 && ex.reps > 0 && ex.reps < 37 ? [{ weight: ex.weight, reps: ex.reps }] : []);
+        : (ex.weight > 0 && ex.reps > 0 && ex.reps < 37 ? [{ weight: +ex.weight, reps: +ex.reps }] : []);
+      if (sets.length === 0) return;
+      if (!byExSessions[ex.name]) byExSessions[ex.name] = [];
+      byExSessions[ex.name].push(sets);
+    });
+  });
 
+  // 각 종목별 최근 3세션의 set만 사용
+  const best = {};
+  Object.keys(byExSessions).forEach(name => {
+    byExSessions[name].slice(0, 3).forEach(sets => {
       sets.forEach(s => {
-        const est = s.weight * (36 / (37 - s.reps));
-        if (!best[ex.name] || est > best[ex.name]) best[ex.name] = est;
+        const est = (+s.weight) * (36 / (37 - (+s.reps)));
+        if (!best[name] || est > best[name]) best[name] = est;
       });
     });
   });
 
-  // DEFAULT_1RM에 있는 종목만 자동 업데이트
+  // 일지에 기록된 모든 종목 자동 업데이트
   const saved = state._oneRM;
   let changed = false;
   Object.keys(best).forEach(name => {
-    if (DEFAULT_1RM[name] !== undefined) {
-      const newRM = Math.round(best[name]);
-      if (newRM > 0 && newRM !== saved[name]) {
-        saved[name] = newRM;
-        changed = true;
-      }
+    const newRM = Math.round(best[name]);
+    if (newRM > 0 && newRM !== saved[name]) {
+      saved[name] = newRM;
+      changed = true;
     }
   });
 
@@ -1936,6 +1953,14 @@ function finishWorkout() {
       const exStep = ex.dumbbell ? 2 : getPlateStep(ex.name);
       const snap = w => Math.round(w / exStep) * exStep;
 
+      // normal 세트 인덱스별 비율 사전 계산 (65%~90% 균등 분배)
+      const normalIndices = ex.setConfig.reduce((arr, sc, si) => sc.type === 'normal' ? [...arr, si] : arr, []);
+      const normalPcts = normalIndices.length === 0 ? [] :
+        normalIndices.length === 1 ? [0.75] :
+        normalIndices.map((_, i) => 0.65 + (0.25 * i / (normalIndices.length - 1)));
+      const normalPctMap = {};
+      normalIndices.forEach((si, i) => { normalPctMap[si] = normalPcts[i]; });
+
       // 모든 세트 기록
       const setData = ex.setConfig.map((sc, si) => {
         const isDone = state.sets[state.day][ei][si] === 'done';
@@ -1945,7 +1970,7 @@ function finishWorkout() {
         if (actual && actual.weight) w = actual.weight;
         else if (sc.type === 'main') w = mainW;
         else if (sc.type === 'warmup') w = snap(mainW * 0.50);
-        else if (sc.type === 'normal') w = snap(mainW * 0.75);
+        else if (sc.type === 'normal') w = snap(mainW * normalPctMap[si]);
         else w = parseFloat(sc.weight) || mainW;
         const r = actual ? (actual.reps || parseInt(sc.reps) || 0) : (parseInt(sc.reps) || 0);
         return { si, type: sc.type, weight: w, reps: r, done: isDone };
@@ -2903,6 +2928,7 @@ async function init() {
   loadJournal();
   updateRMFromJournal();
   loadTrackerState();
+  refreshPhaseWeights();
   renderRoutineGrid();
   restoreRestTimer();
   renderDashboardPhase();
