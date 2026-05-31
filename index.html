@@ -101,7 +101,7 @@ body{
 /* 타임라인 */
 .section{ padding:14px 16px 0; }
 .section-title{ font-size:13px; font-weight:700; color:var(--sub); letter-spacing:.8px; text-transform:uppercase; margin-bottom:10px; }
-.timeline{ display:grid; grid-template-columns:1fr 1fr 2fr 2fr; gap:8px; }
+.timeline{ display:grid; grid-template-columns:1fr; gap:8px; }
 .tl-phase{
   border-radius:10px; padding:11px 12px; border:1px solid var(--border);
   background:var(--surface); opacity:.4;
@@ -1356,6 +1356,7 @@ function goto(page) {
   document.getElementById('p-' + page).classList.add('on');
   document.getElementById('nb-' + page).classList.add('on');
   state.page = page;
+  try { localStorage.setItem('ppld_last_page_v1', page); } catch(e) {}
   if (page === 'journal') renderJournal();
   if (page === 'overload') renderOverload();
   if (page === 'dashboard') { renderRoutineGrid(); renderDashboardPhase(); }
@@ -3002,8 +3003,12 @@ async function init() {
     renderDay(state.day);
   });
 
-  // 운동 있는 날이면 트래커로 바로 이동
-  if (isWorkoutDay) goto('tracker');
+  // 새로고침 시 마지막 페이지 복원, 없으면 운동날엔 트래커로
+  let lastPage = null;
+  try { lastPage = localStorage.getItem('ppld_last_page_v1'); } catch(e) {}
+  const validPages = ['dashboard','tracker','journal','overload','diet'];
+  if (lastPage && validPages.includes(lastPage)) goto(lastPage);
+  else if (isWorkoutDay) goto('tracker');
 
   setupPullToRefresh();
 }
