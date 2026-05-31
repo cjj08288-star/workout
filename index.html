@@ -31,7 +31,18 @@ body{
   display:flex; flex-direction:column; height:100vh;
   width:100%; max-width:990px;
   background:var(--bg);
+  position:relative;
 }
+#ptrIndicator{
+  position:absolute; top:0; left:0; right:0; height:0; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  color:var(--sub); font-size:13px; font-weight:600;
+  background:var(--bg); z-index:50; pointer-events:none;
+}
+#ptrIcon{ font-size:16px; transition:transform .2s; }
+#ptrIndicator.ready #ptrIcon{ transform:rotate(180deg); }
+#ptrIndicator.spin #ptrIcon{ animation:ptrSpin .7s linear infinite; }
+@keyframes ptrSpin{ to{ transform:rotate(360deg); } }
 .page{ display:none; flex:1; overflow-y:auto; overflow-x:hidden; padding-bottom:calc(var(--bnav-h) + 10px); }
 .page.on{ display:block; }
 /* ═══════════════════════════════════════
@@ -533,6 +544,9 @@ table.ov-criteria-table{ width:100%; border-collapse:collapse; background:var(--
 </head>
 <body>
 <div class="app">
+
+<!-- 당겨서 새로고침 인디케이터 -->
+<div id="ptrIndicator"><span id="ptrIcon">↓</span><span id="ptrText">당겨서 새로고침</span></div>
 
 <!-- ══════════════════════════
      ① 대시보드
@@ -1119,6 +1133,7 @@ const DAYS = [
       { name:'풀업', muscle:'광배', weight:'—', setConfig:[
           {type:'warmup', weight:'맨몸+밴드', reps:'최대', restSec:90},
           {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
+          {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
           {type:'main',   weight:'맨몸+밴드', reps:'최대', restSec:150},
       ]},
       { name:'바벨 로우', muscle:'중상부등', weight:'40', setConfig:[
@@ -1193,6 +1208,7 @@ const DAYS = [
       ]},
       { name:'풀업', muscle:'광배', weight:'—', setConfig:[
           {type:'warmup', weight:'맨몸+밴드', reps:'최대', restSec:90},
+          {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
           {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
           {type:'main',   weight:'맨몸+밴드', reps:'최대', restSec:150},
       ]},
@@ -2988,6 +3004,47 @@ async function init() {
 
   // 운동 있는 날이면 트래커로 바로 이동
   if (isWorkoutDay) goto('tracker');
+
+  setupPullToRefresh();
+}
+
+// 당겨서 새로고침 (활성 페이지가 맨 위일 때 아래로 당기면 location.reload)
+function setupPullToRefresh() {
+  const ind = document.getElementById('ptrIndicator');
+  const txt = document.getElementById('ptrText');
+  const THRESHOLD = 70, MAX = 100;
+  let startY = 0, pulling = false, dist = 0;
+  const activePage = () => document.querySelector('.page.on');
+
+  document.addEventListener('touchstart', e => {
+    const pg = activePage();
+    if (pg && pg.scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; }
+    else pulling = false;
+  }, { passive:true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    dist = e.touches[0].clientY - startY;
+    if (dist <= 0) { ind.style.height = '0px'; ind.classList.remove('ready'); return; }
+    const h = Math.min(dist * 0.5, MAX);
+    ind.style.height = h + 'px';
+    if (dist >= THRESHOLD) { ind.classList.add('ready'); txt.textContent = '놓으면 새로고침'; }
+    else { ind.classList.remove('ready'); txt.textContent = '당겨서 새로고침'; }
+  }, { passive:true });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling) return;
+    pulling = false;
+    if (dist >= THRESHOLD) {
+      ind.style.height = '44px'; ind.classList.add('spin'); ind.classList.remove('ready');
+      txt.textContent = '새로고침 중...';
+      setTimeout(() => location.reload(), 300);
+    } else {
+      ind.style.transition = 'height .2s'; ind.style.height = '0px';
+      setTimeout(() => { ind.style.transition = ''; }, 200);
+    }
+    dist = 0;
+  });
 }
 
 init();
