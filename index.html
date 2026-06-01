@@ -1129,7 +1129,7 @@ function fbListen(key, cb) {
 /* ─── DATA ─── */
 const DAYS = [
   {
-    name:'Day 1 · 당기기2', sub:'등 / 이두 (데드 제외)', badge:'PULL 2', schedule:'월요일',
+    name:'Day 1 · 당기기2', sub:'등 / 이두 (데드 제외)', badge:'PULL 2', schedule:'금요일',
     exercises:[
       { name:'풀업', muscle:'광배', weight:'—', setConfig:[
           {type:'warmup', weight:'맨몸+밴드', reps:'최대', restSec:90},
@@ -1199,7 +1199,7 @@ const DAYS = [
     ]
   },
   {
-    name:'Day 3 · 당기기1', sub:'등 / 이두', badge:'PULL 1', schedule:'금요일',
+    name:'Day 3 · 당기기1', sub:'등 / 이두', badge:'PULL 1', schedule:'월요일',
     exercises:[
       { name:'데드리프트', muscle:'전체후면', weight:'70', setConfig:[
           {type:'warmup', weight:'40', reps:12, restSec:120},
@@ -1302,6 +1302,20 @@ const PLATE_STEP = {
 };
 function getPlateStep(exName) { return PLATE_STEP[exName] || _plateStepDefault; }
 
+/* ─── 더블 프로그레션 ─── */
+const PROG_KEY = 'ppld_progression_v1';
+/* 종목별 메인세트 반복 범위 [하한, 상한]. 증량폭은 getPlateStep/덤벨2 재사용 */
+const REP_RANGE = {
+  '데드리프트':[6,10], '벤치프레스':[6,10], '인클라인 벤치프레스':[6,10],
+  '밀리터리 프레스':[6,10], '바벨 로우':[6,10], '바벨 스쿼트':[8,12],
+  '렛풀다운':[6,10], '시티드 로우':[8,12],
+  '바벨 컬':[8,12], '해머 컬':[8,12],
+  '불가리안 스플릿 스쿼트':[8,12], '덤벨 런지':[8,12],
+  '바벨 카프레이즈':[10,15], '트라이셉스 익스텐션':[10,15], '케이블 푸쉬다운':[10,15],
+};
+function getRepRange(exName) { return REP_RANGE[exName] || null; }
+function progStep(ex) { return ex.dumbbell ? 2 : getPlateStep(ex.name); }
+
 /* Pre-layoff 1RM 기준치 & 현재 메인 중량 */
 const OV_1RM = {
   '벤치프레스':         { ref1rm: 80,  target: 10, nextGoal: 50 },
@@ -1345,6 +1359,7 @@ let state = {
   restTimer: null, restRem: 0, restTotal: 0, restCtx: null,
   workoutStart: Date.now(),
   ovExercise: '벤치프레스',
+  progression: (() => { try { return JSON.parse(localStorage.getItem(PROG_KEY)||'{}'); } catch(e){ return {}; } })(),
   journal: []
 };
 
@@ -1546,10 +1561,11 @@ function renderSets(di, ei) {
     const s   = state.sets[di][ei][si];
     const tm  = typeMap[sc.type] || typeMap.main;
     const wLbl = wDisplay(sc, si);
+    const repTarget = sc.type === 'main' ? getMainReps(di, ei) : sc.reps;
     if (s === 'done') return `<button class="set-btn sd" onclick="undoSet(${di},${ei},${si})">
       <div class="sn">${tm.lbl}</div><div class="sw-w">✓</div><div class="sr">${wLbl}</div></button>`;
     return `<button class="set-btn ${tm.cls}" id="sb-${di}-${ei}-${si}" onclick="completeSet(${di},${ei},${si})">
-      <div class="sn">${tm.lbl}</div><div class="sw-w">${wLbl}</div><div class="sr">×${sc.reps}</div></button>`;
+      <div class="sn">${tm.lbl}</div><div class="sw-w">${wLbl}</div><div class="sr">×${repTarget}</div></button>`;
   }).join('');
 }
 
@@ -1690,6 +1706,73 @@ function refreshPhaseWeights() {
     });
   });
 }
+function saveProgression() {
+  const v = JSON.stringify(state.progression || {});
+  localStorage.setItem(PROG_KEY, v);
+  fbSave('prog', v);
+}
+/* 진행도 없는 종목을 현재 무게/메인횟수로 시드 (최초 1회) */
+function seedProgression() {
+  if (!state.progression) state.progression = {};
+  DAYS.forEach((day, di) => {
+    day.exercises.forEach((ex, ei) => {
+      const range = getRepRange(ex.name);
+      if (!range) return;
+      const key = `${di}_${ei}`;
+      if (state.progression[key]) return;
+      const mainSc = ex.setConfig.find(s => s.type === 'main');
+      const baseReps = mainSc ? (parseInt(mainSc.reps) || range[0]) : range[0];
+      const reps = Math.min(range[1], Math.max(range[0], baseReps));
+      const w = parseFloat(state.weights[di][ei]) || parseFloat(ex.weight) || 0;
+      state.progression[key] = { weight: w, reps };
+    });
+  });
+}
+/* 진행도 무게를 트래커 메인 무게에 반영 */
+function applyProgression() {
+  DAYS.forEach((day, di) => {
+    day.exercises.forEach((ex, ei) => {
+      const pr = state.progression && state.progression[`${di}_${ei}`];
+      if (!pr) return;
+      state.weights[di][ei] = String(pr.weight);
+      const inp = document.getElementById(`wi-${di}-${ei}`);
+      if (inp) inp.value = state.weights[di][ei];
+      const row = document.getElementById(`sr-${di}-${ei}`);
+      if (row) row.innerHTML = renderSets(di, ei);
+    });
+  });
+}
+/* 메인 세트 목표 횟수 (진행도 우선, 없으면 setConfig) */
+function getMainReps(di, ei) {
+  const ex = DAYS[di].exercises[ei];
+  const pr = state.progression && state.progression[`${di}_${ei}`];
+  if (pr) return pr.reps;
+  const mainSc = ex.setConfig.find(s => s.type === 'main');
+  return mainSc ? mainSc.reps : '';
+}
+/* 완료된 세트 성과로 증량/유지 판정 */
+function evalProgression(di, ei, setData) {
+  const ex = DAYS[di].exercises[ei];
+  const range = getRepRange(ex.name);
+  if (!range) return;
+  const pr = state.progression && state.progression[`${di}_${ei}`];
+  if (!pr) return;
+  const required = setData.filter(s => s.type === 'main' || s.type === 'normal');
+  if (required.length === 0) return;
+  const targetFor = s => {
+    if (s.type === 'main') return pr.reps;
+    const sc = ex.setConfig[s.si];
+    return sc ? (parseInt(sc.reps) || 0) : 0;
+  };
+  const allHit = required.every(s => s.done && s.reps >= targetFor(s));
+  if (!allHit) return; // 약한 고리 있으면 유지
+  if (pr.reps < range[1]) {
+    pr.reps += 1;
+  } else {
+    pr.weight += progStep(ex);
+    pr.reps = range[0];
+  }
+}
 function save1RM(name, val) {
   const v = parseFloat(val);
   if (!v || v <= 0) return;
@@ -1698,7 +1781,6 @@ function save1RM(name, val) {
   const rmStr = JSON.stringify(saved);
   localStorage.setItem(RM_KEY, rmStr);
   fbSave('rm', rmStr);
-  refreshPhaseWeights();
   renderOverload();
 }
 
@@ -1991,9 +2073,13 @@ function finishWorkout() {
         else if (sc.type === 'warmup') w = snap(mainW * 0.50);
         else if (sc.type === 'normal') w = snap(mainW * normalPctMap[si]);
         else w = parseFloat(sc.weight) || mainW;
-        const r = actual ? (actual.reps || parseInt(sc.reps) || 0) : (parseInt(sc.reps) || 0);
+        const tgt = sc.type === 'main' ? (parseInt(getMainReps(state.day, ei)) || parseInt(sc.reps) || 0) : (parseInt(sc.reps) || 0);
+        const r = actual ? (actual.reps || tgt) : tgt;
         return { si, type: sc.type, weight: w, reps: r, done: isDone };
       });
+
+      // 더블 프로그레션: 메인+일반 전 세트 목표 달성 시 증량/횟수+1
+      evalProgression(state.day, ei, setData);
 
       const mainSet = setData.find(s => s.type === 'main' && s.done) || setData.find(s => s.type === 'main');
       const doneSets = state.sets[state.day][ei].filter(s => s === 'done').length;
@@ -2027,6 +2113,8 @@ function finishWorkout() {
   };
   state.journal.unshift(entry);
   saveJournal();
+  saveProgression();
+  applyProgression();
   renderJournal();
 
   const cp = getCurrentPhase();
@@ -2904,7 +2992,7 @@ function getTodayDayIndex() {
   const dow = Math.floor(kstMs / 86400000) % 7; // UTC 기준 일수로 요일 계산 (목=4)
   // KST 날짜의 요일: UTC epoch 일수 + 4(1970-01-01이 목요일) mod 7
   const kstDow = (Math.floor(kstMs / 86400000) + 4) % 7;
-  const map = { 1:0, 3:1, 5:2, 6:3 }; // 월→Day1(PULL2), 수→Day2(LEG), 금→Day3(PULL1), 토→Day4(PUSH)
+  const map = { 1:2, 3:1, 5:0, 6:3 }; // 월→Day3(PULL1, 데드), 수→Day2(LEG), 금→Day1(PULL2), 토→Day4(PUSH)
   return map[kstDow] !== undefined ? map[kstDow] : null;
 }
 
@@ -2918,12 +3006,13 @@ function seedDietFromChat(dateStr, meals) {
 
 async function init() {
   // Firebase에서 데이터 우선 로드 (다른 기기 동기화)
-  const [jv, dv, rv, cv] = await Promise.all([
-    fbLoad('journal'), fbLoad('diet'), fbLoad('rm'), fbLoad('config')
+  const [jv, dv, rv, cv, pv] = await Promise.all([
+    fbLoad('journal'), fbLoad('diet'), fbLoad('rm'), fbLoad('config'), fbLoad('prog')
   ]);
   if (jv) localStorage.setItem(STORAGE_KEY, jv);
   if (dv) localStorage.setItem(DIET_KEY, dv);
   if (rv) localStorage.setItem(RM_KEY, rv);
+  if (pv) { localStorage.setItem(PROG_KEY, pv); try { state.progression = JSON.parse(pv) || {}; } catch(e) {} }
   // 운동 설정 Firestore에서 동적 적용
   if (cv) {
     try {
@@ -2974,9 +3063,11 @@ async function init() {
   });
 
   loadJournal();
-  updateRMFromJournal();
-  loadTrackerState();
-  refreshPhaseWeights();
+  updateRMFromJournal();   // 1RM은 과부하 페이지 표시용으로 유지
+  refreshPhaseWeights();   // 신선한 1RM으로 시드 기준 무게 산출
+  seedProgression();       // 진행도 없으면 현재 무게/메인횟수로 시드
+  applyProgression();      // 진행도 기반 메인 무게 확정
+  loadTrackerState();      // 오늘 진행 중이면 그 상태 우선
   renderRoutineGrid();
   restoreRestTimer();
   renderDashboardPhase();
@@ -3000,7 +3091,12 @@ async function init() {
   });
   fbListen('rm', v => {
     localStorage.setItem(RM_KEY, v);
-    refreshPhaseWeights();
+    if (state.page === 'overload') renderOverload();
+  });
+  fbListen('prog', v => {
+    localStorage.setItem(PROG_KEY, v);
+    try { state.progression = JSON.parse(v) || {}; } catch(e) {}
+    applyProgression();
     renderDay(state.day);
   });
 
