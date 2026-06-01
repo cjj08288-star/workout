@@ -1129,41 +1129,34 @@ function fbListen(key, cb) {
 /* ─── DATA ─── */
 const DAYS = [
   {
-    name:'Day 1 · 당기기2', sub:'등 / 이두 (데드 제외)', badge:'PULL 2', schedule:'금요일',
+    name:'Day 1 · 당기기1', sub:'등 / 이두', badge:'PULL 1', schedule:'월요일',
     exercises:[
+      { name:'데드리프트', muscle:'전체후면', weight:'70', setConfig:[
+          {type:'warmup', weight:'40', reps:12, restSec:120},
+          {type:'normal', weight:'60', reps:10, restSec:150},
+          {type:'normal', weight:'70', reps:8,  restSec:150},
+          {type:'main',   weight:'70', reps:6,  restSec:180},
+      ]},
       { name:'풀업', muscle:'광배', weight:'—', setConfig:[
           {type:'warmup', weight:'맨몸+밴드', reps:'최대', restSec:90},
           {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
           {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
           {type:'main',   weight:'맨몸+밴드', reps:'최대', restSec:150},
       ]},
-      { name:'바벨 로우', muscle:'중상부등', weight:'40', setConfig:[
-          {type:'warmup', weight:'20', reps:12, restSec:90},
-          {type:'normal', weight:'30', reps:10, restSec:120},
-          {type:'normal', weight:'40', reps:8,  restSec:120},
-          {type:'main',   weight:'40', reps:6,  restSec:150},
+      { name:'렛풀다운', muscle:'광배', weight:'60', setConfig:[
+          {type:'warmup', weight:'30', reps:12, restSec:90},
+          {type:'normal', weight:'50', reps:8,  restSec:120},
+          {type:'main',   weight:'60', reps:6,  restSec:150},
       ]},
-      { name:'렛풀다운', muscle:'광배', weight:'50', setConfig:[
-          {type:'warmup', weight:'20', reps:12, restSec:90},
-          {type:'normal', weight:'30', reps:10, restSec:120},
+      { name:'바벨 로우', muscle:'중상부등', weight:'50', setConfig:[
+          {type:'warmup', weight:'30', reps:12, restSec:90},
           {type:'normal', weight:'40', reps:8,  restSec:120},
           {type:'main',   weight:'50', reps:6,  restSec:150},
       ]},
-      { name:'시티드 로우', muscle:'중부등', weight:'50', setConfig:[
-          {type:'warmup', weight:'20', reps:12, restSec:90},
-          {type:'normal', weight:'30', reps:10, restSec:120},
-          {type:'normal', weight:'40', reps:8,  restSec:120},
-          {type:'main',   weight:'50', reps:8,  restSec:150},
-      ]},
       { name:'바벨 컬', muscle:'이두', weight:'20', setConfig:[
-          {type:'warmup', weight:'20', reps:12, restSec:90},
-          {type:'normal', weight:'20', reps:10, restSec:90},
-          {type:'main',   weight:'20', reps:8,  restSec:90},
-      ]},
-      { name:'해머 컬', muscle:'상완근', weight:'14', dumbbell:true, setConfig:[
           {type:'warmup', weight:'10', reps:12, restSec:90},
-          {type:'normal', weight:'12', reps:10, restSec:90},
-          {type:'main',   weight:'14', reps:8,  restSec:0},
+          {type:'normal', weight:'15', reps:10, restSec:90},
+          {type:'main',   weight:'20', reps:8,  restSec:0},
       ]},
     ]
   },
@@ -1199,34 +1192,41 @@ const DAYS = [
     ]
   },
   {
-    name:'Day 3 · 당기기1', sub:'등 / 이두', badge:'PULL 1', schedule:'월요일',
+    name:'Day 3 · 당기기2', sub:'등 / 이두 (데드 제외)', badge:'PULL 2', schedule:'금요일',
     exercises:[
-      { name:'데드리프트', muscle:'전체후면', weight:'70', setConfig:[
-          {type:'warmup', weight:'40', reps:12, restSec:120},
-          {type:'normal', weight:'60', reps:10, restSec:150},
-          {type:'normal', weight:'70', reps:8,  restSec:150},
-          {type:'main',   weight:'70', reps:6,  restSec:180},
-      ]},
       { name:'풀업', muscle:'광배', weight:'—', setConfig:[
           {type:'warmup', weight:'맨몸+밴드', reps:'최대', restSec:90},
           {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
           {type:'normal', weight:'맨몸+밴드', reps:'최대', restSec:120},
           {type:'main',   weight:'맨몸+밴드', reps:'최대', restSec:150},
       ]},
-      { name:'렛풀다운', muscle:'광배', weight:'60', setConfig:[
-          {type:'warmup', weight:'30', reps:12, restSec:90},
-          {type:'normal', weight:'50', reps:8,  restSec:120},
-          {type:'main',   weight:'60', reps:6,  restSec:150},
+      { name:'바벨 로우', muscle:'중상부등', weight:'40', setConfig:[
+          {type:'warmup', weight:'20', reps:12, restSec:90},
+          {type:'normal', weight:'30', reps:10, restSec:120},
+          {type:'normal', weight:'40', reps:8,  restSec:120},
+          {type:'main',   weight:'40', reps:6,  restSec:150},
       ]},
-      { name:'바벨 로우', muscle:'중상부등', weight:'50', setConfig:[
-          {type:'warmup', weight:'30', reps:12, restSec:90},
+      { name:'렛풀다운', muscle:'광배', weight:'50', setConfig:[
+          {type:'warmup', weight:'20', reps:12, restSec:90},
+          {type:'normal', weight:'30', reps:10, restSec:120},
           {type:'normal', weight:'40', reps:8,  restSec:120},
           {type:'main',   weight:'50', reps:6,  restSec:150},
       ]},
+      { name:'시티드 로우', muscle:'중부등', weight:'50', setConfig:[
+          {type:'warmup', weight:'20', reps:12, restSec:90},
+          {type:'normal', weight:'30', reps:10, restSec:120},
+          {type:'normal', weight:'40', reps:8,  restSec:120},
+          {type:'main',   weight:'50', reps:8,  restSec:150},
+      ]},
       { name:'바벨 컬', muscle:'이두', weight:'20', setConfig:[
+          {type:'warmup', weight:'20', reps:12, restSec:90},
+          {type:'normal', weight:'20', reps:10, restSec:90},
+          {type:'main',   weight:'20', reps:8,  restSec:90},
+      ]},
+      { name:'해머 컬', muscle:'상완근', weight:'14', dumbbell:true, setConfig:[
           {type:'warmup', weight:'10', reps:12, restSec:90},
-          {type:'normal', weight:'15', reps:10, restSec:90},
-          {type:'main',   weight:'20', reps:8,  restSec:0},
+          {type:'normal', weight:'12', reps:10, restSec:90},
+          {type:'main',   weight:'14', reps:8,  restSec:0},
       ]},
     ]
   },
@@ -1723,7 +1723,8 @@ function seedProgression() {
       const mainSc = ex.setConfig.find(s => s.type === 'main');
       const baseReps = mainSc ? (parseInt(mainSc.reps) || range[0]) : range[0];
       const reps = Math.min(range[1], Math.max(range[0], baseReps));
-      const w = parseFloat(state.weights[di][ei]) || parseFloat(ex.weight) || 0;
+      // 시드 무게 = 트래커 고정 기본값(setConfig 메인). 1RM/페이즈 변동에 안 흔들리게.
+      const w = parseFloat(mainSc && mainSc.weight) || parseFloat(ex.weight) || 0;
       state.progression[key] = { weight: w, reps };
     });
   });
@@ -1759,18 +1760,42 @@ function evalProgression(di, ei, setData) {
   if (!pr) return;
   const required = setData.filter(s => s.type === 'main' || s.type === 'normal');
   if (required.length === 0) return;
-  const targetFor = s => {
+  // 목표 무게 계산 (renderSets와 동일: 메인=pr.weight, 일반=메인×65~90% 스냅)
+  const mainVal = pr.weight;
+  const exStep = ex.dumbbell ? 2 : getPlateStep(ex.name);
+  const snap = w => Math.round(w / exStep) * exStep;
+  const normalIndices = ex.setConfig.reduce((arr, sc, si) => sc.type === 'normal' ? [...arr, si] : arr, []);
+  const normalPcts = normalIndices.length === 0 ? [] :
+    normalIndices.length === 1 ? [0.75] :
+    normalIndices.map((_, i) => 0.65 + (0.25 * i / (normalIndices.length - 1)));
+  const normalPctMap = {};
+  normalIndices.forEach((si, i) => { normalPctMap[si] = normalPcts[i]; });
+  const targetReps = s => {
     if (s.type === 'main') return pr.reps;
     const sc = ex.setConfig[s.si];
     return sc ? (parseInt(sc.reps) || 0) : 0;
   };
-  const allHit = required.every(s => s.done && s.reps >= targetFor(s));
-  if (!allHit) return; // 약한 고리 있으면 유지
-  if (pr.reps < range[1]) {
-    pr.reps += 1;
+  const targetWeight = s => s.type === 'main' ? mainVal : snap(mainVal * (normalPctMap[s.si] || 0.75));
+  // 목표 무게 이상으로 목표 횟수 달성해야 증량 (무게 낮추면 증량 안 됨)
+  const allHit = required.every(s => s.done && s.reps >= targetReps(s) && s.weight >= targetWeight(s));
+  if (allHit) {
+    // 증량: 범위 상한 도달 시 무게 +1단계(하한 리셋), 아니면 횟수 +1
+    pr.fails = 0;
+    if (pr.reps < range[1]) pr.reps += 1;
+    else { pr.weight += progStep(ex); pr.reps = range[0]; }
+    return;
+  }
+  // 감량: 목표 무게로 메인 세트가 범위 하한도 못 채운 게 2세션 연속이면 -1단계
+  const mainSet = setData.find(s => s.type === 'main' && s.done);
+  if (mainSet && mainSet.weight >= pr.weight && mainSet.reps < range[0]) {
+    pr.fails = (pr.fails || 0) + 1;
+    if (pr.fails >= 2) {
+      pr.weight = Math.max(progStep(ex), pr.weight - progStep(ex));
+      pr.reps = range[1];
+      pr.fails = 0;
+    }
   } else {
-    pr.weight += progStep(ex);
-    pr.reps = range[0];
+    pr.fails = 0; // 하한 이상 달성 or 무게 낮춘 날 → 카운터 리셋, 같은 무게 유지
   }
 }
 function save1RM(name, val) {
@@ -2992,7 +3017,7 @@ function getTodayDayIndex() {
   const dow = Math.floor(kstMs / 86400000) % 7; // UTC 기준 일수로 요일 계산 (목=4)
   // KST 날짜의 요일: UTC epoch 일수 + 4(1970-01-01이 목요일) mod 7
   const kstDow = (Math.floor(kstMs / 86400000) + 4) % 7;
-  const map = { 1:2, 3:1, 5:0, 6:3 }; // 월→Day3(PULL1, 데드), 수→Day2(LEG), 금→Day1(PULL2), 토→Day4(PUSH)
+  const map = { 1:0, 3:1, 5:2, 6:3 }; // 월→Day1(PULL1, 데드), 수→Day2(LEG), 금→Day3(PULL2), 토→Day4(PUSH)
   return map[kstDow] !== undefined ? map[kstDow] : null;
 }
 
