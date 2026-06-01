@@ -1299,6 +1299,7 @@ let _plateStepDefault = 10;  // 바벨: 5kg 원판 양쪽 = 10kg 단위
 const PLATE_STEP = {
   '렛풀다운':    5,
   '시티드 로우': 5,
+  '케이블 푸쉬다운': 5,
 };
 function getPlateStep(exName) { return PLATE_STEP[exName] || _plateStepDefault; }
 
@@ -1780,22 +1781,30 @@ function evalProgression(di, ei, setData) {
   const allHit = required.every(s => s.done && s.reps >= targetReps(s) && s.weight >= targetWeight(s));
   if (allHit) {
     // 증량: 범위 상한 도달 시 무게 +1단계(하한 리셋), 아니면 횟수 +1
-    pr.fails = 0;
     if (pr.reps < range[1]) pr.reps += 1;
     else { pr.weight += progStep(ex); pr.reps = range[0]; }
     return;
   }
-  // 감량: 목표 무게로 메인 세트가 범위 하한도 못 채운 게 2세션 연속이면 -1단계
+  // 감량: 같은 무게에서 메인 추정1RM(e1RM)이 이번 포함 3세션 연속 하락(추세 꺾임)이면 -1단계
   const mainSet = setData.find(s => s.type === 'main' && s.done);
-  if (mainSet && mainSet.weight >= pr.weight && mainSet.reps < range[0]) {
-    pr.fails = (pr.fails || 0) + 1;
-    if (pr.fails >= 2) {
-      pr.weight = Math.max(progStep(ex), pr.weight - progStep(ex));
-      pr.reps = range[1];
-      pr.fails = 0;
+  if (!mainSet || mainSet.weight < pr.weight) return; // 무게 낮춰 한 날은 판단 보류
+  const e1 = (w, r) => (r > 0 && r < 37) ? w * 36 / (37 - r) : 0;
+  const cur = e1(+mainSet.weight, +mainSet.reps);
+  if (cur <= 0) return;
+  // 운동일지에서 같은 종목·같은 무게의 직전 메인 e1RM 2개 (최신순)
+  const hist = [];
+  for (const entry of (state.journal || [])) {
+    const rec = (entry.exercises || []).find(x => x.name === ex.name);
+    const m = rec && (rec.setData || []).find(s => s.type === 'main' && s.done);
+    if (m && Math.abs((+m.weight) - pr.weight) < 0.01 && (+m.reps) > 0 && (+m.reps) < 37) {
+      hist.push(e1(+m.weight, +m.reps));
+      if (hist.length >= 2) break;
     }
-  } else {
-    pr.fails = 0; // 하한 이상 달성 or 무게 낮춘 날 → 카운터 리셋, 같은 무게 유지
+  }
+  // 이번 < 직전 < 그전 = 3세션 연속 하락 → 추세 꺾임으로 감량
+  if (hist.length >= 2 && cur < hist[0] && hist[0] < hist[1]) {
+    pr.weight = Math.max(progStep(ex), pr.weight - progStep(ex));
+    pr.reps = range[1];
   }
 }
 function save1RM(name, val) {
